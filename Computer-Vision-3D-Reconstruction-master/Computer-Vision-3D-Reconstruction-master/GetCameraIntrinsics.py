@@ -1,6 +1,5 @@
 import cv2 as cv
 import numpy
-from bs4 import BeautifulSoup
 import numpy as np
 
 # termination criteria
@@ -11,16 +10,16 @@ cam2 = cv.VideoCapture('data/cam2/intrinsics.avi')
 cam3 = cv.VideoCapture('data/cam3/intrinsics.avi')
 cam4 = cv.VideoCapture('data/cam4/intrinsics.avi')
 
-with open('data\checkerboard.xml', 'r') as f:
-    checkerboardxml = f.read()
+CB_data = cv.FileStorage('data\checkerboard.xml', cv.FileStorage_READ)
 
-CB_data = BeautifulSoup(checkerboardxml, "xml")
+s = cv.FileStorage('data\checkerboard.xml', cv.FileStorage_READ)
 
 #chessboard parameters
-columns = int(CB_data.find('CheckerBoardWidth').get_text())
-rows = int(CB_data.find('CheckerBoardHeight').get_text())
+columns = int(s.getNode('CheckerBoardWidth').real())
+rows = int(s.getNode('CheckerBoardHeight').real())
 board_shape = (columns, rows)
-cube_size = int(CB_data.find('CheckerBoardSquareSize').get_text())
+cube_size = int(s.getNode('CheckerBoardSquareSize').real())
+s.release()
 
 # prepare object points with cube size, like (0,0,0), (22,0,0), (44,0,0) ....,(132,110,0)
 objp = np.zeros((columns * rows, 3), np.float32)
@@ -132,7 +131,6 @@ def Offline(images):
         # Draw and display the corners
         cv.drawChessboardCorners(img, board_shape, corners, ret)
         cv.imshow('img', img)
-        cv.waitKey(0)
 
     cv.destroyWindow('img')
 
@@ -163,25 +161,28 @@ def getFrames(cam):
 
 def main():
     #TODO get frames from each cam
-    print("cam1")
-    frames1 = getFrames(cam1)
-    print("cam2")
-    frames2 = getFrames(cam2)
-    print("cam3")
-    frames3 = getFrames(cam3)
-    print("cam4")
-    frames4 = getFrames(cam4)
+    calibrateCam(cam1, 'cam1')
+    calibrateCam(cam2, 'cam2')
+    calibrateCam(cam3, 'cam3')
+    calibrateCam(cam4, 'cam4')
     print('done ')
     #TODO calibrate each camera using these frames
-    calibration1 = Offline(frames1)
-    print(f'calibration 1: {calibration1}')
-    calibration2 = Offline(frames2)
-    print(f'calibration 2: {calibration2}')
-    calibration3 = Offline(frames3)
-    print(f'calibration 3: {calibration3}')
-    calibration4 = Offline(frames4)
-    print(f'calibration 4: {calibration4}')
+
+
+
     #TODO write calibration to XML (manually?)
+
+
+def calibrateCam(cam, cam_string):
+    print(cam_string)
+    frames = getFrames(cam)
+    calibration = Offline(frames)
+    print(f'calibration {cam_string}: cam:{calibration[1]} distortion: {calibration[2]}')
+    camXML = cv.FileStorage(f'data/{cam_string}/intrinsics.xml', cv.FileStorage_WRITE)
+    camXML.write('CameraMatrix', calibration[1])
+    camXML.write('DistortionCoeffs', calibration[2])
+    camXML.release()
+
 
 if __name__ == "__main__":
     main()
