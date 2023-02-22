@@ -15,4 +15,18 @@
     -3.4879046973183614e-01 1.5556545894994220e-01
     1.0846328077021314e-03 3.0342794799709580e-04
     -3.9242683297866704e-02</data></DistortionCoeffs>
+<RotationMatrix type_id="opencv-matrix">
+  <rows>3</rows>
+  <cols>1</cols>
+  <dt>d</dt>
+  <data>
+    -1.2490541118677005e+00 1.0049936923546550e+00
+    1.0493800900736430e+00</data></RotationMatrix>
+<TranslationMatrix type_id="opencv-matrix">
+  <rows>3</rows>
+  <cols>1</cols>
+  <dt>d</dt>
+  <data>
+    -3.3657226066353911e+02 1.1778692784451764e+03
+    3.3595495876800919e+03</data></TranslationMatrix>
 </opencv_storage>
