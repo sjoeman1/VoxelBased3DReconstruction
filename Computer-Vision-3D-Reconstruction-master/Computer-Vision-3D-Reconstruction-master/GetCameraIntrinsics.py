@@ -5,10 +5,15 @@ import numpy as np
 # termination criteria
 criteria = (cv.TERM_CRITERIA_EPS + cv.TERM_CRITERIA_MAX_ITER, 30, 0.001)
 
-cam1 = cv.VideoCapture('data/cam1/intrinsics.avi')
-cam2 = cv.VideoCapture('data/cam2/intrinsics.avi')
-cam3 = cv.VideoCapture('data/cam3/intrinsics.avi')
-cam4 = cv.VideoCapture('data/cam4/intrinsics.avi')
+camIntrinsic1 = cv.VideoCapture('data/cam1/intrinsics.avi')
+camIntrinsic2 = cv.VideoCapture('data/cam2/intrinsics.avi')
+camIntrinsic3 = cv.VideoCapture('data/cam3/intrinsics.avi')
+camIntrinsic4 = cv.VideoCapture('data/cam4/intrinsics.avi')
+
+camExtrinsic1 = cv.VideoCapture('data/cam1/checkerboard.avi')
+camExtrinsic2 = cv.VideoCapture('data/cam2/checkerboard.avi')
+camExtrinsic3 = cv.VideoCapture('data/cam3/checkerboard.avi')
+camExtrinsic4 = cv.VideoCapture('data/cam4/checkerboard.avi')
 
 CB_data = cv.FileStorage('data\checkerboard.xml', cv.FileStorage_READ)
 
@@ -161,26 +166,49 @@ def getFrames(cam):
 
 def main():
     #TODO get frames from each cam
-    calibrateCam(cam1, 'cam1')
-    calibrateCam(cam2, 'cam2')
-    calibrateCam(cam3, 'cam3')
-    calibrateCam(cam4, 'cam4')
+    calibrateCam(camIntrinsic1, camExtrinsic1, 'cam1')
+    calibrateCam(camIntrinsic2, camExtrinsic2, 'cam2')
+    calibrateCam(camIntrinsic3, camExtrinsic3, 'cam3')
+    calibrateCam(camIntrinsic4, camExtrinsic4, 'cam4')
     print('done ')
     #TODO calibrate each camera using these frames
-
 
 
     #TODO write calibration to XML (manually?)
 
 
-def calibrateCam(cam, cam_string):
+def calibrateCam(intrinsic, extrinsic, cam_string):
     print(cam_string)
-    frames = getFrames(cam)
-    calibration = Offline(frames)
-    print(f'calibration {cam_string}: cam:{calibration[1]} distortion: {calibration[2]}')
+    frames = getFrames(intrinsic)
+    ret, mtx, dist, rvecs, tvecs = Offline(frames)
+    print(f'calibration {cam_string}: cam:{mtx},\n distortion: {dist}')
+
+    ret, img = extrinsic.read()
+    gray = cv.cvtColor(img, cv.COLOR_BGR2GRAY)
+
+    ret, corners = getChessboardCorners(gray)
+    corners = interpolateCorners(corners, gray)
+
+    # refine the corner positions
+    corners2 = cv.cornerSubPix(gray, corners, (5, 5), (-1, -1), criteria)
+
+    # Draw and display the corners
+    cv.drawChessboardCorners(img, board_shape, corners, ret)
+    cv.imshow('img', img)
+    cv.waitKey(0)
+
+
+    ret, rvecs, tvecs = cv.solvePnP(objp, corners2, mtx, dist)
+
+    print(f'extrinsics {cam_string}: rotation:{rvecs},\n translation: {tvecs}')
+
     camXML = cv.FileStorage(f'data/{cam_string}/intrinsics.xml', cv.FileStorage_WRITE)
-    camXML.write('CameraMatrix', calibration[1])
-    camXML.write('DistortionCoeffs', calibration[2])
+    camXML.write('CameraMatrix', mtx)
+    camXML.write('DistortionCoeffs', dist)
+    camXML.write('RotationMatrix', rvecs)
+    camXML.write('TranslationMatrix', tvecs)
+
+    cv.destroyAllWindows()
     camXML.release()
 
 
