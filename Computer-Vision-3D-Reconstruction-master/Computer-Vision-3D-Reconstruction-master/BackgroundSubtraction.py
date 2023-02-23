@@ -38,12 +38,25 @@ def subtract_background(video, background, sd):
         cv.imshow('diff', diff)
         cv.waitKey(0)
 
+        print(diff)
+
 
         #check for each pixel if it is in the range of the standard deviation to create mask
         mask = create_mask(diff, sd)
 
+        element = cv.getStructuringElement(cv.MORPH_CROSS, (3, 3))
+
+        mask = cv.dilate(mask, element)
+        mask = cv.dilate(mask, element)
+
+        print(mask.dtype)
+        print(mask)
+
+        mask, contours, hierarchy = cv.findContours(mask, cv.RETR_EXTERNAL, cv.CHAIN_APPROX_NONE)
+
         cv.imshow('mask', mask)
         cv.waitKey(0)
+
 
         res = cv.bitwise_and(frame, frame, mask= mask)
         # cv.imshow('res', res)
@@ -54,7 +67,7 @@ def subtract_background(video, background, sd):
 
 def create_mask(diff, sd):
     # check for each pixel for each channel if it is in the range of the standard deviation to create mask
-    mask = np.zeros(diff.shape, dtype=np.uint8)
+    mask = np.zeros(diff.shape, dtype=np.float32)
     for i in range(diff.shape[0]):
         for j in range(diff.shape[1]):
             standard_deviation = sd[i,j]
@@ -72,7 +85,9 @@ def create_mask(diff, sd):
 
             #print(sd_diff)
             if (5 < sd_diff[0]) and (18 < sd_diff[1]) and (18 < sd_diff[2]):
-                mask[i,j] = 255
+                mask[i,j] = np.array([255, 255, 255])
+            else:
+                mask[i,j] = np.array([0, 0, 0])
 
     return mask
 
@@ -93,7 +108,7 @@ def main():
     #     background, sd = compose_background(frames)
     #     cv.imwrite('data/cam' +  str(i+1) + '/background.png', background)
     #     cv.imwrite('data/cam' +  str(i+1) + '/sd.png', sd)
-    #
+
     cam_nr = 4
     background = cv.imread('data/cam' + str(cam_nr) +'/background.png')
     sd = cv.imread('data/cam' + str(cam_nr) +'/sd.png')
