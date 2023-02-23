@@ -202,7 +202,7 @@ def calibrateCam(intrinsic, extrinsic, cam_string):
 
     print(f'extrinsics {cam_string}: rotation:{rvecs},\n translation: {tvecs}')
 
-    camXML = cv.FileStorage(f'data/{cam_string}/intrinsics.xml', cv.FileStorage_WRITE)
+    camXML = cv.FileStorage(f'data/{cam_string}/config.xml', cv.FileStorage_WRITE)
     camXML.write('CameraMatrix', mtx)
     camXML.write('DistortionCoeffs', dist)
     camXML.write('RotationMatrix', rvecs)
