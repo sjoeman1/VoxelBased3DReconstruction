@@ -23,6 +23,7 @@ s = cv.FileStorage('data\checkerboard.xml', cv.FileStorage_READ)
 columns = int(s.getNode('CheckerBoardWidth').real())
 rows = int(s.getNode('CheckerBoardHeight').real())
 board_shape = (columns, rows)
+print(int(s.getNode('CheckerBoardSquareSize').real()))
 cube_size = int(s.getNode('CheckerBoardSquareSize').real())
 s.release()
 
@@ -173,6 +174,12 @@ def main():
     calibrateCam(camIntrinsic4, camExtrinsic4, 'cam4')
     print('done ')
 
+def draw(img, corners, imgpts):
+    corner = tuple(corners[0].ravel())
+    img = cv.line(img, corner, tuple(imgpts[0].ravel()), (255,0,0), 5)
+    img = cv.line(img, corner, tuple(imgpts[1].ravel()), (0,255,0), 5)
+    img = cv.line(img, corner, tuple(imgpts[2].ravel()), (0,0,255), 5)
+    return img
 
 def calibrateCam(intrinsic, extrinsic, cam_string):
     print(cam_string)
@@ -196,6 +203,14 @@ def calibrateCam(intrinsic, extrinsic, cam_string):
 
 
     ret, rvecs, tvecs = cv.solvePnP(objp, corners, mtx, dist)
+
+    axis = np.float32(cube_size * [[3, 0, 0], [0, 3, 0], [0, 0, -3]]).reshape(-1, 3)
+    # project the real cube coordinates to image coordinates
+    imgpts, jac = cv.projectPoints(axis, rvecs, tvecs, mtx, dist)
+
+    # draw the cube using the coordinates
+    img = draw(img, corners2, imgpts)
+    cv.imshow('img', img)
 
     print(f'extrinsics {cam_string}: rotation:{rvecs},\n translation: {tvecs}')
 
