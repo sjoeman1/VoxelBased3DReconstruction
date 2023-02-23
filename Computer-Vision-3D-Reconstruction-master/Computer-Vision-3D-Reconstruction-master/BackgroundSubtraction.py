@@ -42,19 +42,27 @@ def subtract_background(video, background, sd):
         #check for each pixel if it is in the range of the standard deviation to create mask
         mask = create_mask(diff, sd)
 
-        cv.imshow('mask', mask)
+        #refine mask
+        img = refine_mask(mask)
+        cv.imshow('mask', img)
         cv.waitKey(0)
 
-        res = cv.bitwise_and(frame, frame, mask= mask)
-        # cv.imshow('res', res)
-        # cv.waitKey(0)
-
-        new_frames.append(res)
+        new_frames.append(img)
     return np.array(new_frames)
+
+def refine_mask(mask):
+    mask = cv.dilate(mask, np.ones((3, 3), dtype=np.uint8), iterations=2)
+    #find contours
+    contours, _ = cv.findContours(mask, cv.RETR_TREE, cv.CHAIN_APPROX_SIMPLE)
+    #draw the biggest contour
+    c = max(contours, key=cv.contourArea)
+    blank = np.zeros(mask.shape, dtype=np.uint8)
+    img = cv.fillPoly(blank, [c], 255)
+    return img
 
 def create_mask(diff, sd):
     # check for each pixel for each channel if it is in the range of the standard deviation to create mask
-    mask = np.zeros(diff.shape, dtype=np.uint8)
+    mask = np.zeros((diff.shape[0], diff.shape[1]), dtype=np.uint8)
     for i in range(diff.shape[0]):
         for j in range(diff.shape[1]):
             standard_deviation = sd[i,j]
@@ -93,8 +101,8 @@ def main():
     #     background, sd = compose_background(frames)
     #     cv.imwrite('data/cam' +  str(i+1) + '/background.png', background)
     #     cv.imwrite('data/cam' +  str(i+1) + '/sd.png', sd)
-    #
-    cam_nr = 4
+
+    cam_nr = 2
     background = cv.imread('data/cam' + str(cam_nr) +'/background.png')
     sd = cv.imread('data/cam' + str(cam_nr) +'/sd.png')
     video = cv.VideoCapture('data/cam' + str(cam_nr) +'/video.avi')
