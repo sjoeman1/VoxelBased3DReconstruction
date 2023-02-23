@@ -3,12 +3,19 @@ import numpy as np
 
 
 def compose_background(frames):
+    #convert frames to HSV first
+    for i in range(len(frames)):
+        frames[i] = cv.cvtColor(frames[i], cv.COLOR_BGR2HSV)
     average = np.zeros(frames[0].shape, dtype=np.float32)
+    #calculate standard deviation for hue, saturation and value
     sd = np.zeros(frames[0].shape, dtype=np.float32)
+    #calculate average
     for frame in frames:
         average += frame
-        sd += (frame - average)**2
     average /= len(frames)
+    #calculate standard deviation
+    for frame in frames:
+        sd += np.square(frame - average)
     sd = np.sqrt(sd / len(frames))
     return np.uint8(average), np.uint8(sd)
 
@@ -24,19 +31,17 @@ def subtract_background(video, background, sd):
         hsv = cv.cvtColor(frame, cv.COLOR_BGR2HSV)
         cv.imshow('frame', hsv)
         cv.waitKey(1)
-        hsv_background = cv.cvtColor(background, cv.COLOR_BGR2HSV)
-        hsv_sd = cv.cvtColor(sd, cv.COLOR_BGR2HSV)
 
         #calculate difference
-        diff = np.clip(hsv - hsv_background, 0, 255)
+        diff = abs(hsv - background)
+
         cv.imshow('diff', diff)
         cv.waitKey(0)
 
-        # calculate lower and upper bounds for each pixel
-        lower = np.zeros(diff.shape, dtype=np.uint8)
-        upper = hsv_sd
+
         #check for each pixel if it is in the range of the standard deviation to create mask
-        mask = cv.inRange(diff, lower, upper)
+        mask = create_mask(diff, sd)
+
         cv.imshow('mask', mask)
         cv.waitKey(0)
 
@@ -46,6 +51,30 @@ def subtract_background(video, background, sd):
 
         new_frames.append(res)
     return np.array(new_frames)
+
+def create_mask(diff, sd):
+    # check for each pixel for each channel if it is in the range of the standard deviation to create mask
+    mask = np.zeros(diff.shape, dtype=np.uint8)
+    for i in range(diff.shape[0]):
+        for j in range(diff.shape[1]):
+            standard_deviation = sd[i,j]
+            #reflip bits
+            for value in range(3):
+                if standard_deviation[value] > 123:
+                    standard_deviation[value] = 255-standard_deviation[value]
+
+            d = diff[i,j]
+            #reflip bits
+            for value in range(3):
+                if d[value] > 123:
+                    d[value] = 255-d[value]
+            sd_diff = np.abs(d - standard_deviation)
+
+            #print(sd_diff)
+            if (5 < sd_diff[0]) and (18 < sd_diff[1]) and (18 < sd_diff[2]):
+                mask[i,j] = 255
+
+    return mask
 
 def getFrames(cam, num_frames= 30):
     frames = []
@@ -64,11 +93,11 @@ def main():
     #     background, sd = compose_background(frames)
     #     cv.imwrite('data/cam' +  str(i+1) + '/background.png', background)
     #     cv.imwrite('data/cam' +  str(i+1) + '/sd.png', sd)
-
-    background = cv.imread('data/cam2/background.png')
-
-    sd = cv.imread('data/cam2/sd.png')
-    video = cv.VideoCapture('data/cam2/video.avi')
+    #
+    cam_nr = 4
+    background = cv.imread('data/cam' + str(cam_nr) +'/background.png')
+    sd = cv.imread('data/cam' + str(cam_nr) +'/sd.png')
+    video = cv.VideoCapture('data/cam' + str(cam_nr) +'/video.avi')
     new_frames = subtract_background(video, background, sd)
     cv.imshow('frame', new_frames[0])
     cv.waitKey(0)
