@@ -26,7 +26,7 @@ board_shape = (columns, rows)
 cube_size = int(s.getNode('CheckerBoardSquareSize').real())
 s.release()
 
-# prepare object points with cube size, like (0,0,0), (22,0,0), (44,0,0) ....,(132,110,0)
+# prepare object points with cube size, like (0,0,0), (115,0,0), (230,0,0) ....,(345,575,0)
 objp = np.zeros((columns * rows, 3), np.float32)
 objp[:, :2] = cube_size * np.mgrid[0:columns, 0:rows].T.reshape(-1, 2)
 
@@ -115,7 +115,7 @@ def Offline(images):
     for img in images:
         gray = cv.cvtColor(img, cv.COLOR_BGR2GRAY)
         # Find the chess board corners automatically
-        ret, corners = cv.findChessboardCorners(gray, board_shape, None)
+        ret, corners = cv.findChessboardCorners(gray, board_shape, flags=cv.CALIB_CB_FAST_CHECK)
         if not ret:
             #find chessboard corners manually
             ret, corners = getChessboardCorners(gray)
@@ -144,19 +144,21 @@ def Offline(images):
 
     return calibration
 
-def getFrames(cam):
+def getFrames(cam, frame_count):
     frames = []
     totalFrames = cam.get(cv.CAP_PROP_FRAME_COUNT)
     print(totalFrames)
     _, img = cam.read()
-    for i in numpy.linspace(0, totalFrames, num= 10, dtype= int, endpoint=False):
+    for i in numpy.linspace(0, totalFrames, num= frame_count, dtype= int, endpoint=False):
         cam.set(cv.CAP_PROP_POS_FRAMES, i)
         ret = False
         while not ret:
-            _, img = cam.read()
+            cam_ret, img = cam.read()
+            if not cam_ret:
+                break
             gray = cv.cvtColor(img, cv.COLOR_BGR2GRAY)
             # Find the chess board corners automatically
-            ret, corners = cv.findChessboardCorners(gray, board_shape, None)
+            ret, corners = cv.findChessboardCorners(gray, board_shape, flags=cv.CALIB_CB_FAST_CHECK)
         if ret:
             print(cam.get(cv.CAP_PROP_POS_FRAMES))
             frames.append(img)
@@ -165,21 +167,16 @@ def getFrames(cam):
 
 
 def main():
-    #TODO get frames from each cam
     calibrateCam(camIntrinsic1, camExtrinsic1, 'cam1')
     calibrateCam(camIntrinsic2, camExtrinsic2, 'cam2')
     calibrateCam(camIntrinsic3, camExtrinsic3, 'cam3')
     calibrateCam(camIntrinsic4, camExtrinsic4, 'cam4')
     print('done ')
-    #TODO calibrate each camera using these frames
-
-
-    #TODO write calibration to XML (manually?)
 
 
 def calibrateCam(intrinsic, extrinsic, cam_string):
     print(cam_string)
-    frames = getFrames(intrinsic)
+    frames = getFrames(intrinsic, 20)
     ret, mtx, dist, rvecs, tvecs = Offline(frames)
     print(f'calibration {cam_string}: cam:{mtx},\n distortion: {dist}')
 
@@ -190,7 +187,7 @@ def calibrateCam(intrinsic, extrinsic, cam_string):
     corners = interpolateCorners(corners, gray)
 
     # refine the corner positions
-    corners2 = cv.cornerSubPix(gray, corners, (5, 5), (-1, -1), criteria)
+    corners2 = cv.cornerSubPix(gray, corners, (4, 4), (-1, -1), criteria)
 
     # Draw and display the corners
     cv.drawChessboardCorners(img, board_shape, corners, ret)
@@ -198,7 +195,7 @@ def calibrateCam(intrinsic, extrinsic, cam_string):
     cv.waitKey(0)
 
 
-    ret, rvecs, tvecs = cv.solvePnP(objp, corners2, mtx, dist)
+    ret, rvecs, tvecs = cv.solvePnP(objp, corners, mtx, dist)
 
     print(f'extrinsics {cam_string}: rotation:{rvecs},\n translation: {tvecs}')
 
