@@ -15,6 +15,11 @@ camExtrinsic2 = cv.VideoCapture('data/cam2/checkerboard.avi')
 camExtrinsic3 = cv.VideoCapture('data/cam3/checkerboard.avi')
 camExtrinsic4 = cv.VideoCapture('data/cam4/checkerboard.avi')
 
+cam1xml = cv.FileStorage(f'data/cam1/config.xml', cv.FileStorage_READ)
+cam2xml = cv.FileStorage(f'data/cam2/config.xml', cv.FileStorage_READ)
+cam3xml = cv.FileStorage(f'data/cam3/config.xml', cv.FileStorage_READ)
+cam4xml = cv.FileStorage(f'data/cam4/config.xml', cv.FileStorage_READ)
+
 CB_data = cv.FileStorage('data\checkerboard.xml', cv.FileStorage_READ)
 
 s = cv.FileStorage('data\checkerboard.xml', cv.FileStorage_READ)
@@ -23,7 +28,7 @@ s = cv.FileStorage('data\checkerboard.xml', cv.FileStorage_READ)
 columns = int(s.getNode('CheckerBoardWidth').real())
 rows = int(s.getNode('CheckerBoardHeight').real())
 board_shape = (columns, rows)
-cube_size = s.getNode('CheckerBoardSquareSize').real()/1000
+cube_size = int(s.getNode('CheckerBoardSquareSize').real())
 s.release()
 
 # prepare object points with cube size, like (0,0,0), (115,0,0), (230,0,0) ....,(345,575,0)
@@ -35,14 +40,8 @@ clicks = 0
 
 # #draw a cube on the image given the corners and the projected points
 # project 3D points to image plane
-def draw_cube(img, imgpts, points):
+def draw_cube(img, imgpts):
     imgpts = np.int32(imgpts).reshape(-1, 2)
-    points = np.int32(points).reshape(-1, 2)
-    print(points)
-
-    #for each point in points, draw a cam number
-    for i in range(len(points)):
-        img = cv.putText(img, str(i), tuple(points[i]), cv.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 255), 2, cv.LINE_AA)
 
 
     #first the x and y origin axis lines
@@ -72,23 +71,6 @@ def  Online(img, calibration, corners = None):
     length = 4 * cube_size
     cube = np.float32([[0, 0, 0], [0, length, 0], [length, length, 0], [length, 0, 0],
                        [0, 0, -length], [0, length, -length], [length, length, -length], [length, 0, -length]])
-    cam1xml = cv.FileStorage(f'data/cam1/config.xml', cv.FileStorage_READ)
-    cam2xml = cv.FileStorage(f'data/cam2/config.xml', cv.FileStorage_READ)
-    cam3xml = cv.FileStorage(f'data/cam3/config.xml', cv.FileStorage_READ)
-    cam4xml = cv.FileStorage(f'data/cam4/config.xml', cv.FileStorage_READ)
-    cam1pos = cam1xml.getNode('TranslationMatrix').mat().flatten()
-    #negate the z axis
-    cam1pos[2] = -cam1pos[2]
-    print(cam1pos)
-    cam2pos = cam2xml.getNode('TranslationMatrix').mat().flatten()
-    print(cam2pos)
-    cam2pos[2] = -cam2pos[2]
-    cam3pos = cam3xml.getNode('TranslationMatrix').mat().flatten()
-    cam3pos[2] = -cam3pos[2]
-    cam4pos = cam4xml.getNode('TranslationMatrix').mat().flatten()
-    cam4pos[2] = -cam4pos[2]
-    cam_points = np.float32([cam1pos, cam2pos, cam3pos, cam4pos])
-    print(cam_points)
 
     # the camera calibration matrices
     ret, mtx, dist, rvecs, tvecs = calibration
@@ -111,10 +93,9 @@ def  Online(img, calibration, corners = None):
         #project the real cube coordinates to image coordinates
         imgpts, jac = cv.projectPoints(cube, rvecs, tvecs, mtx, dist)
 
-        campts, jac = cv.projectPoints(cam_points, rvecs, tvecs, mtx, dist)
 
         #draw the cube using the coordinates
-        img = draw_cube(img, imgpts, campts)
+        img = draw_cube(img, imgpts)
 
 
 
@@ -221,10 +202,11 @@ def Offline(images):
             imgpoints.append(corners)
 
         # Draw and display the corners
-        cv.drawChessboardCorners(img, board_shape, corners, ret)
-        cv.imshow('img', img)
+        # cv.drawChessboardCorners(img, board_shape, corners, ret)
+        # cv.imshow('img', img)
+        # cv.waitKey(0)
 
-    cv.destroyWindow('img')
+    # cv.destroyWindow('img')
 
     #calibrate the camera using all the points found in all the images
     calibration = cv.calibrateCamera(objpoints, imgpoints, gray.shape[::-1], None, None)
@@ -254,18 +236,29 @@ def getFrames(cam, frame_count):
 
 
 def main():
-    calibrateCam(camIntrinsic1, camExtrinsic1, 'cam1')
-    calibrateCam(camIntrinsic2, camExtrinsic2, 'cam2')
-    calibrateCam(camIntrinsic3, camExtrinsic3, 'cam3')
-    calibrateCam(camIntrinsic4, camExtrinsic4, 'cam4')
+    # img1 = calibrateCam(camIntrinsic1, camExtrinsic1, 'cam1')
+    # img2 = calibrateCam(camIntrinsic2, camExtrinsic2, 'cam2')
+    # img3 = calibrateCam(camIntrinsic3, camExtrinsic3, 'cam3')
+    # img4 = calibrateCam(camIntrinsic4, camExtrinsic4, 'cam4')
     print('done ')
+    img1 = camExtrinsic1.read()[1]
+    img2 = camExtrinsic2.read()[1]
+    img3 = camExtrinsic3.read()[1]
+    img4 = camExtrinsic4.read()[1]
+
+    drawCamPos(img1, cam1xml)
+    drawCamPos(img2, cam2xml)
+    drawCamPos(img3, cam3xml)
+    drawCamPos(img4, cam4xml)
 
 
 def calibrateCam(intrinsic, extrinsic, cam_string):
     print(cam_string)
     frames = getFrames(intrinsic, 20)
     ret, mtx, dist, rvecs, tvecs = Offline(frames)
-    print(f'calibration {cam_string}: cam:{mtx},\n distortion: {dist}')
+
+
+    print(f'calibration {cam_string}:\n cam:\n{mtx},\n distortion:\n {dist}')
 
     ret, img = extrinsic.read()
     gray = cv.cvtColor(img, cv.COLOR_BGR2GRAY)
@@ -277,26 +270,79 @@ def calibrateCam(intrinsic, extrinsic, cam_string):
     corners2 = cv.cornerSubPix(gray, corners, (4, 4), (-1, -1), criteria)
 
     # Draw and display the corners
-    cv.drawChessboardCorners(img.copy(), board_shape, corners2, ret)
+    cv.drawChessboardCorners(img, board_shape, corners2, ret)
     cv.imshow('img', img)
     cv.waitKey(0)
 
-    # ret, mtx, dist, rvecs, tvecs = calibration
-    img = Online(img, (True, mtx, dist, rvecs, tvecs), corners2)
-    cv.imshow('img', img)
-    cv.waitKey(0)
+
     ret, rvecs, tvecs = cv.solvePnP(objp, corners2, mtx, dist)
 
-    print(f'extrinsics {cam_string}: rotation:{rvecs},\n translation: {tvecs}')
+    R = cv.Rodrigues(rvecs)[0]
+    T = -numpy.matrix(R).T * numpy.matrix(tvecs)
+
+    print(f'extrinsics {cam_string}:\n rotation:{rvecs},\n translation:\n {tvecs}, \n rotation matrix:\n {R}, \n translation matrix:\n {T}')
 
     camXML = cv.FileStorage(f'data/{cam_string}/config.xml', cv.FileStorage_WRITE)
     camXML.write('CameraMatrix', mtx)
     camXML.write('DistortionCoeffs', dist)
-    camXML.write('RotationMatrix', rvecs)
-    camXML.write('TranslationMatrix', tvecs)
+    camXML.write('rvec', rvecs)
+    camXML.write('tvecs', tvecs)
+    camXML.write('RotationMatrix', R)
+    camXML.write('TranslationMatrix', T)
+
 
     cv.destroyAllWindows()
     camXML.release()
+
+    return img
+
+def drawCamPos(img, xml_file):
+    mtx = xml_file.getNode('CameraMatrix').mat()
+    dist = xml_file.getNode('DistortionMatrix').mat()
+    rvecs = xml_file.getNode('rvec').mat()
+    tvecs = xml_file.getNode('tvecs').mat()
+    R = xml_file.getNode('RotationMatrix').mat()
+    T = xml_file.getNode('TranslationMatrix').mat()
+
+    gray = cv.cvtColor(img, cv.COLOR_BGR2GRAY)
+
+    # ret, corners = getChessboardCorners(gray)
+    # corners = interpolateCorners(corners, gray)
+    #
+    # # refine the corner positions
+    # corners2 = cv.cornerSubPix(gray, corners, (4, 4), (-1, -1), criteria)
+
+    # Draw and display the corners
+    # cv.drawChessboardCorners(img, board_shape, corners2, ret)
+    # cv.imshow('img', img)
+    # cv.waitKey(0)
+
+    cam1pos = cam1xml.getNode('TranslationMatrix').mat().flatten()
+    #negate the z axis
+    cam1pos[2] = -cam1pos[2]
+    print(cam1pos)
+    cam2pos = cam2xml.getNode('TranslationMatrix').mat().flatten()
+    cam2pos[2] = -cam2pos[2]
+    cam3pos = cam3xml.getNode('TranslationMatrix').mat().flatten()
+    cam3pos[2] = -cam3pos[2]
+    cam4pos = cam4xml.getNode('TranslationMatrix').mat().flatten()
+    cam4pos[2] = -cam4pos[2]
+    cam_points = np.float32([cam1pos, cam2pos, cam3pos, cam4pos])
+    print(cam_points)
+
+    campts, jac = cv.projectPoints(cam_points, rvecs, tvecs, mtx, dist)
+    points = np.int32(campts).reshape(-1, 2)
+    print(points)
+
+    #for each point in points, draw a cam number
+    for i in range(len(points)):
+        img = cv.putText(img, str(i), tuple(points[i]), cv.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 255), 2, cv.LINE_AA)
+
+    cv.imshow('img', img)
+    cv.waitKey(0)
+
+    cv.destroyAllWindows()
+
 
 
 if __name__ == "__main__":
