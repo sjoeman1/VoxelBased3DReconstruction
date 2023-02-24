@@ -1,3 +1,5 @@
+import sys
+
 import glm
 import random
 import numpy as np
@@ -10,8 +12,9 @@ def getConfig(cam_string):
     cam = cam_xml.getNode('CameraMatrix').mat()
     dist = cam_xml.getNode('DistortionCoeffs').mat()
     rot = cam_xml.getNode('RotationMatrix').mat()
-    trans = cam_xml.getNode('TranslationMatrix').mat()
-    print(trans)
+    trans = cam_xml.getNode('TranslationMatrix').mat()*40
+    print(cam_string)
+    print(dist)
 
     return cam, dist, rot, trans
 
@@ -20,6 +23,21 @@ mtx1, dist1, rvecs1, tvecs1 = getConfig('cam1')
 mtx2, dist2, rvecs2, tvecs2 = getConfig('cam2')
 mtx3, dist3, rvecs3, tvecs3 = getConfig('cam3')
 mtx4, dist4, rvecs4, tvecs4 = getConfig('cam4')
+
+mask1 = cv.imread('data\cam1\mask.png')
+mask2 = cv.imread('data\cam2\mask.png')
+mask3 = cv.imread('data\cam3\mask.png')
+mask4 = cv.imread('data\cam4\mask.png')
+video1 = cv.VideoCapture('data/cam1/background.avi')
+frame1 = video1.read()
+video2 = cv.VideoCapture('data/cam2/background.avi')
+frame2 = video2.read()
+video3 = cv.VideoCapture('data/cam3/background.avi')
+frame3 = video3.read()
+video4 = cv.VideoCapture('data/cam4/background.avi')
+frame4 = video4.read()
+
+voxelFrameIdx = 0
 
 
 
@@ -32,40 +50,10 @@ def generate_grid(width, depth):
             data.append([x*block_size - width/2, -block_size, z*block_size - depth/2])
     return data
 
-
-def set_voxel_positions(width, height, depth):
-    # Generates random voxel locations
-    # TODO: You need to calculate proper voxel arrays instead of random ones.
-    #get mask.png from every camera
-    mask1 = cv.imread('data\cam1\mask.png')
-    mask2 = cv.imread('data\cam2\mask.png')
-    mask3 = cv.imread('data\cam3\mask.png')
-    mask4 = cv.imread('data\cam4\mask.png')
-    data = []
-    for x in range(width):
-        for y in range(height):
-            for z in range(depth):
-                print(x,y,z)
-                incam1 = inMask(x, y, z, rvecs1, tvecs1, mtx1, dist1, mask1)
-                if not incam1:
-                    continue
-                incam2 = inMask(x, y, z, rvecs2, tvecs2, mtx2, dist2, mask2)
-                if not incam2:
-                    continue
-                incam3 = inMask(x, y, z, rvecs3, tvecs3, mtx3, dist3, mask3)
-                if not incam3:
-                    continue
-                incam4 = inMask(x, y, z, rvecs4, tvecs4, mtx4, dist4, mask4)
-                if not incam4:
-                    continue
-                data.append([x * block_size - width / 2, y * block_size - height / 2, z * block_size - depth / 2])
-
-    return data
-
-
-def inMask(x, y, z, rvecs, tvecs, mtx, dist, mask):
+def inMask(x, y, z, rvecs, tvecs, mtx, dist, mask, img):
     # project x,y,z to each camera
     # add it to data if it is in every mask
+    distance = np.linalg.norm(np.array([x, y, z]) - tvecs)
     point = cv.projectPoints(np.array([[x, y, z]], dtype=np.float32), rvecs, tvecs, mtx, dist)[0][0][0]
     xpoint = point[0]
     ypoint = point[1]
@@ -73,7 +61,66 @@ def inMask(x, y, z, rvecs, tvecs, mtx, dist, mask):
     if xpoint < 0 or xpoint >= mask.shape[0] or ypoint < 0 or ypoint >= mask.shape[1]:
         return False
     # return if point in mask is white
-    return (mask[int(xpoint), int(ypoint)] == [255, 255, 255]).all()
+    inMask = (mask[int(xpoint), int(ypoint)] == [255, 255, 255]).all()
+    color = img[int(xpoint), int(ypoint)]
+    return inMask, distance, color
+
+def generate_voxel_lookup_table(width, height, depth):
+
+    distance = sys.maxint()
+    dict = dict()
+    for frameIdx in range(video1.get(cv.CAP_PROP_FRAME_COUNT)):
+        for x in range(width):
+            for y in range(height):
+                for z in range(depth):
+                    print(x,y,z)
+                    (incam1, distance1, color1) = inMask(x, y, z, rvecs1, tvecs1, mtx1, dist1, mask1, frame1)
+                    if not incam1:
+                        dict = {(frameIdx, x, y, z): (False, np.array([0,0,0]))}
+                        continue
+                    (incam2,distance2, color2) = inMask(x, y, z, rvecs2, tvecs2, mtx2, dist2, mask2, frame2)
+                    if not incam2:
+                        dict = {(frameIdx, x, y, z): (False, np.array([0,0,0]))}
+                        continue
+                    (incam3,distance3, color3) = inMask(x, y, z, rvecs3, tvecs3, mtx3, dist3, mask3, frame3)
+                    if not incam3:
+                        dict = {(frameIdx, x, y, z): (False, np.array([0,0,0]))}
+                        continue
+                    (incam4, distance4, color4) = inMask(x, y, z, rvecs4, tvecs4, mtx4, dist4, mask4, frame4)
+                    if not incam4:
+                        dict = {(frameIdx, x, y, z): (False, np.array([0,0,0]))}
+                        continue
+                    if distance1 < distance:
+                        distance = distance1
+                        color = color1
+                    if distance2 < distance:
+                        distance = distance2
+                        color = color2
+                    if distance3 < distance:
+                        distance = distance3
+                        color = color3
+                    if distance4 < distance:
+                        distance = distance4
+                        color = color4
+                    dict = {(frameIdx, x, y, z): True}
+        print(f'frame {frameIdx} done')
+    #save dict to file
+    np.save('voxel_lookup_table.npy', dict)
+
+def set_voxel_positions(width, height, depth):
+    # Generates random voxel locations
+    # TODO: You need to calculate proper voxel arrays instead of random ones.
+    #get mask.png from every camera
+    lookupTable = np.load('voxel_lookup_table.npy').item()
+    data = []
+    for x in range(width):
+        for y in range(height):
+            for z in range(depth):
+                if lookupTable[(voxelFrameIdx, x, y, z)][0]:
+                    color = lookupTable[(voxelFrameIdx, x, y, z)][1]
+                    data.append([x * block_size - width / 2, y * block_size - height / 2, z * block_size - depth / 2])
+    return data
+
 
 
 def get_cam_positions():

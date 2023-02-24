@@ -23,7 +23,7 @@ s = cv.FileStorage('data\checkerboard.xml', cv.FileStorage_READ)
 columns = int(s.getNode('CheckerBoardWidth').real())
 rows = int(s.getNode('CheckerBoardHeight').real())
 board_shape = (columns, rows)
-cube_size = int(s.getNode('CheckerBoardSquareSize').real())
+cube_size = s.getNode('CheckerBoardSquareSize').real()/1000
 s.release()
 
 # prepare object points with cube size, like (0,0,0), (115,0,0), (230,0,0) ....,(345,575,0)
@@ -32,6 +32,93 @@ objp[:, :2] = cube_size * np.mgrid[0:columns, 0:rows].T.reshape(-1, 2)
 
 #amount of clicks for the corners
 clicks = 0
+
+# #draw a cube on the image given the corners and the projected points
+# project 3D points to image plane
+def draw_cube(img, imgpts, points):
+    imgpts = np.int32(imgpts).reshape(-1, 2)
+    points = np.int32(points).reshape(-1, 2)
+    print(points)
+
+    #for each point in points, draw a cam number
+    for i in range(len(points)):
+        img = cv.putText(img, str(i), tuple(points[i]), cv.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 255), 2, cv.LINE_AA)
+
+
+    #first the x and y origin axis lines
+    img = cv.line(img, tuple(imgpts[0]), tuple(imgpts[1]), (255,255,0), 10)
+    img = cv.line(img, tuple(imgpts[0]), tuple(imgpts[3]), (0,255,255), 10)
+
+    # draw ground floor in green
+    img = cv.drawContours(img, [imgpts[:4]], -1, (0, 255, 0), -3)
+
+    # draw pillars in blue color
+    for i, j in zip(range(4), range(4, 8)):
+        img = cv.line(img, tuple(imgpts[i]), tuple(imgpts[j]), (255,0,0), 6)
+
+    # then draw z origin axis lines
+    img = cv.line(img, tuple(imgpts[0]), tuple(imgpts[4]), (255,0,255), 10)
+
+    # draw top layer in red color
+    img = cv.drawContours(img, [imgpts[4:]], -1, (0, 0, 255), 3)
+
+    return img
+
+
+# generates a new image from img, with cornerpoints and a cube projected on to it
+def  Online(img, calibration, corners = None):
+
+    # the 3d points of a cube. 2 * cube_size to make the cube 2 chessboard squares sized
+    length = 4 * cube_size
+    cube = np.float32([[0, 0, 0], [0, length, 0], [length, length, 0], [length, 0, 0],
+                       [0, 0, -length], [0, length, -length], [length, length, -length], [length, 0, -length]])
+    cam1xml = cv.FileStorage(f'data/cam1/config.xml', cv.FileStorage_READ)
+    cam2xml = cv.FileStorage(f'data/cam2/config.xml', cv.FileStorage_READ)
+    cam3xml = cv.FileStorage(f'data/cam3/config.xml', cv.FileStorage_READ)
+    cam4xml = cv.FileStorage(f'data/cam4/config.xml', cv.FileStorage_READ)
+    cam1pos = cam1xml.getNode('TranslationMatrix').mat().flatten()
+    #negate the z axis
+    cam1pos[2] = -cam1pos[2]
+    print(cam1pos)
+    cam2pos = cam2xml.getNode('TranslationMatrix').mat().flatten()
+    print(cam2pos)
+    cam2pos[2] = -cam2pos[2]
+    cam3pos = cam3xml.getNode('TranslationMatrix').mat().flatten()
+    cam3pos[2] = -cam3pos[2]
+    cam4pos = cam4xml.getNode('TranslationMatrix').mat().flatten()
+    cam4pos[2] = -cam4pos[2]
+    cam_points = np.float32([cam1pos, cam2pos, cam3pos, cam4pos])
+    print(cam_points)
+
+    # the camera calibration matrices
+    ret, mtx, dist, rvecs, tvecs = calibration
+
+    #gray the image
+    gray = cv.cvtColor(img, cv.COLOR_BGR2GRAY)
+
+    #find corners
+    if corners is None:
+        ret, corners = cv.findChessboardCorners(gray, board_shape, flags= cv.CALIB_CB_FAST_CHECK)
+        img = cv.drawChessboardCorners(img, board_shape, corners, ret)
+
+    if ret is not False:
+        # refine corners
+        # corners2 = cv.cornerSubPix(gray, corners, (5, 5), (-1, -1), criteria)
+
+        # find the rotation and translation vectors.
+        ret, rvecs, tvecs = cv.solvePnP(objp, corners, mtx, dist)
+
+        #project the real cube coordinates to image coordinates
+        imgpts, jac = cv.projectPoints(cube, rvecs, tvecs, mtx, dist)
+
+        campts, jac = cv.projectPoints(cam_points, rvecs, tvecs, mtx, dist)
+
+        #draw the cube using the coordinates
+        img = draw_cube(img, imgpts, campts)
+
+
+
+    return img
 
 # calculate the reprojection error by projecting the 3d points to 2d points and measuring the average distance
 def reprojectionError(objectpoints, corners, image):
@@ -190,12 +277,15 @@ def calibrateCam(intrinsic, extrinsic, cam_string):
     corners2 = cv.cornerSubPix(gray, corners, (4, 4), (-1, -1), criteria)
 
     # Draw and display the corners
-    cv.drawChessboardCorners(img, board_shape, corners, ret)
+    cv.drawChessboardCorners(img.copy(), board_shape, corners2, ret)
     cv.imshow('img', img)
     cv.waitKey(0)
 
-
-    ret, rvecs, tvecs = cv.solvePnP(objp, corners, mtx, dist)
+    # ret, mtx, dist, rvecs, tvecs = calibration
+    img = Online(img, (True, mtx, dist, rvecs, tvecs), corners2)
+    cv.imshow('img', img)
+    cv.waitKey(0)
+    ret, rvecs, tvecs = cv.solvePnP(objp, corners2, mtx, dist)
 
     print(f'extrinsics {cam_string}: rotation:{rvecs},\n translation: {tvecs}')
 
