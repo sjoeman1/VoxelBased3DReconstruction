@@ -18,6 +18,7 @@ def getConfig(cam_string):
 
     #flip the y and z axis and negate z
     T = [T[0], -T[2], T[1]]
+    #R = [R[0], -R[2], R[1]]
     print(cam_string)
     print(T)
 
@@ -146,18 +147,18 @@ def get_cam_rotation_matrices():
     cam_angles = [R1, R2, R3, R4]
     cam_rotations = [glm.mat4(1), glm.mat4(1), glm.mat4(1), glm.mat4(1)]
     # print(cam_rotations[0])
-    # for c in range(len(cam_rotations)):
-    #     cam_rotations[c] = glm.rotate(cam_rotations[c], cam_angles[c][0], [1, 0, 0])
-    #     cam_rotations[c] = glm.rotate(cam_rotations[c], cam_angles[c][1], [0, 1, 0])
-    #     cam_rotations[c] = glm.rotate(cam_rotations[c], cam_angles[c][2], [0, 0, 1])
-    print(R1)
+    for c in range(len(cam_rotations)):
+        cam_rotations[c] = glm.rotate(cam_rotations[c], cam_angles[c][0][0], [1,0,0])
+        cam_rotations[c] = glm.rotate(cam_rotations[c], cam_angles[c][1][0], [0,1,0])
+        cam_rotations[c] = glm.rotate(cam_rotations[c], cam_angles[c][2][0], [0,0,1])
+    print(cam_rotations[0])
     for c in range(len(cam_rotations)):
         for i in range(3):
             for j in range(3):
                 cam_rotations[c][i][j] = cam_angles[c][i][j]
     print(cam_rotations[0])
-    # p
-    print(R1)
-    print(cam_rotations[0])
+    # # p
+    # print(R1)
+    # print(cam_rotations[0])
 
     return cam_rotations
