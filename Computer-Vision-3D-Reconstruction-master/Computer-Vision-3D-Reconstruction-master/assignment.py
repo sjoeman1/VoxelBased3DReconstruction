@@ -37,10 +37,11 @@ mtx2, dist2, rvecs2, tvecs2, R2, T2 = getConfig('cam2')
 mtx3, dist3, rvecs3, tvecs3, R3, T3 = getConfig('cam3')
 mtx4, dist4, rvecs4, tvecs4, R4, T4 = getConfig('cam4')
 
-mask1 = cv.imread('data\cam1\mask.png')
-mask2 = cv.imread('data\cam2\mask.png')
-mask3 = cv.imread('data\cam3\mask.png')
-mask4 = cv.imread('data\cam4\mask.png')
+mask1 = cv.imread('data\cam1\masks\mask0.png')
+(mask_height, mask_width, _) = mask1.shape
+mask2 = cv.imread('data\cam2\masks\mask0.png')
+mask3 = cv.imread('data\cam3\masks\mask0.png')
+mask4 = cv.imread('data\cam4\masks\mask0.png')
 video1 = cv.VideoCapture('data/cam1/background.avi')
 frame1 = video1.read()
 video2 = cv.VideoCapture('data/cam2/background.avi')
@@ -70,25 +71,27 @@ def generate_grid(width, depth):
 def generate_voxel_lookup_table(width, height, depth):
     # generate meshgrid of width, height, depth and project to each camera
     global lookupTable
-    objpts = np.float32(np.mgrid[0:width, 0:height, 0:depth].T.reshape(-1, 3))
+    objpts = np.float32(np.mgrid[-width/2:width/2, 0:height, -depth/2:depth/2].T.reshape(-1, 3))
+    rvec1 = cv.Rodrigues(R1)[0]
+    rvec2 = cv.Rodrigues(R2)[0]
+    rvec3 = cv.Rodrigues(R3)[0]
+    rvec4 = cv.Rodrigues(R4)[0]
     print(objpts)
-    print(rvecs1)
     # project to each camera
-    imgpts1 = cv.projectPoints(objpts, R1, tvecs1, mtx1, dist1)[0]
-    #reshape to 3D array
-    imgpts1 = imgpts1.reshape(width, height, depth, 2)
-    imgpts2 = cv.projectPoints(objpts, R2, tvecs2, mtx2, dist2)[0]
-    imgpts2 = imgpts2.reshape(width, height, depth, 2)
-    imgpts3 = cv.projectPoints(objpts, R3, tvecs3, mtx3, dist3)[0]
-    imgpts3 = imgpts3.reshape(width, height, depth, 2)
-    imgpts4 = cv.projectPoints(objpts, R4, tvecs4, mtx4, dist4)[0]
-    imgpts4 = imgpts4.reshape(width, height, depth, 2)
+    imgpts1 = cv.projectPoints(objpts, rvec1, tvecs1, mtx1, dist1)[0]
+    imgpts2 = cv.projectPoints(objpts, rvec2, tvecs2, mtx2, dist2)[0]
+    imgpts3 = cv.projectPoints(objpts, rvec3, tvecs3, mtx3, dist3)[0]
+    imgpts4 = cv.projectPoints(objpts, rvec4, tvecs4, mtx4, dist4)[0]
+    imgpts = [imgpts1, imgpts2, imgpts3, imgpts4]
     print(imgpts1)
-    for x in range(width):
-        for y in range(height):
-            for z in range(depth):
-                lookupTable[x,y,z] = [imgpts1[x,y,z], imgpts2[x,y,z], imgpts3[x,y,z], imgpts4[x,y,z]]
-        print(x)
+    for c in range(4):
+        # enumerate over imgpts and save c, x, y to lookupTable
+        for i in range(len(imgpts[c])):
+            x = int(imgpts[c][i][0][0])
+            y = int(imgpts[c][i][0][1])
+            if x < 0 or x >= mask_width or y < 0 or y >= mask_height:
+                continue
+            lookupTable[c, x, y].append(objpts[i])
 
 
 
@@ -96,7 +99,7 @@ def generate_voxel_lookup_table(width, height, depth):
 
     #save dict to file
     print("saving lookup table")
-    np.save('voxel_lookup_table.npy', lookupTable)
+    # np.save('voxel_lookup_table.npy', lookupTable)
 
 def set_voxel_positions(width, height, depth):
     global lookupTable
@@ -104,18 +107,18 @@ def set_voxel_positions(width, height, depth):
     # TODO: You need to calculate proper voxel arrays instead of random ones.
     #get mask.png from every camera
     print("generating")
-    if not lookupTable:
-        print("loading lookup table")
-        generate_voxel_lookup_table(width, height, depth)
-    cv.imshow('mask', mask2)
+
+    generate_voxel_lookup_table(width, height, depth)
     data = []
-    for x in range(width):
-        for y in range(height):
-            for z in range(depth):
-                imgpts = lookupTable[x, y, z]
-                inAll, color = inMask(imgpts, [mask1, mask2, mask3, mask4], [frame1, frame2, frame3, frame4])
-                if inAll:
-                    data.append([x*block_size - width/2, y*block_size, z*block_size - depth/2])
+    # for x in range(width):
+    #     for y in range(height):
+    #         for z in range(depth):
+    #             imgpts = lookupTable[x, y, z]
+    #             inAll, color = inMask(imgpts, [mask1, mask2, mask3, mask4], [frame1, frame2, frame3, frame4])
+    #             if inAll:
+    #                 data.append([x*block_size - width/2, y*block_size, z*block_size - depth/2])
+    # cv.imshow('mask', mask2)
+    # data.append([0*block_size - width/2, 0*block_size, 0*block_size - depth/2])
 
     return data
 
@@ -124,14 +127,14 @@ def inMask(imgpt, masks, imgs):
     # add it to data if it is in every mask
     # print(masks[0][int(295)][int(351)])
     color = np.zeros(3)
-    for i in range(1):
-        ypoint = imgpt[i][0]
-        xpoint = imgpt[i][1]
+    for i in range(3,4):
+        xpoint = int(imgpt[i][0])
+        ypoint = int(imgpt[i][1])
         #check if point is out of bounds
         if xpoint < 0 or xpoint >= masks[0].shape[1] or ypoint < 0 or ypoint >= masks[0].shape[0]:
             return False, color
         # return if point in mask is white
-        inMask = (masks[i][int(xpoint)][int(ypoint)] == 255).all()
+        inMask = (masks[i][ypoint][xpoint] == 255).all()
         if not inMask:
             return False, color
 
