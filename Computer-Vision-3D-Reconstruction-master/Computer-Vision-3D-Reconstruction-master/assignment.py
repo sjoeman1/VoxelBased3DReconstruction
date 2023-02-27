@@ -110,12 +110,10 @@ def set_voxel_positions(width, height, depth):
     print("generating")
     generate_voxel_lookup_table(width, height, depth)
     data = []
-    for c in range(1):
+    for c in range(1,2):
         for x in range(mask_width):
             for y in range(mask_height):
-                if x < 0 or x >= mask_width or y < 0 or y >= mask_height:
-                    continue
-                if (masks[c][y][x] == 0).all():
+                if (masks[c][y][x] != 255).all():
                     continue
                 if (c, x, y) in lookupTable:
                     voxels = lookupTable[(c, x, y)]
