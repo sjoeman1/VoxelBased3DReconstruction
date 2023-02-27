@@ -22,36 +22,30 @@ def compose_background(frames):
 
 def subtract_background(video, background, sd):
     new_frames = []
-    #convert frames to HSV
-    ret = True
-    while ret:
-        ret, frame = video.read()
-        if not ret:
-            break
+    frames = getFrames(video, num_frames= 5)
+    i = 0
+    for frame in frames:
         hsv = cv.cvtColor(frame, cv.COLOR_BGR2HSV)
-        cv.imshow('frame', hsv)
-        cv.waitKey(1)
 
         #calculate difference
         diff = abs(hsv - background)
-
-        cv.imshow('diff', diff)
-        cv.waitKey(0)
-
 
         #check for each pixel if it is in the range of the standard deviation to create mask
         mask = create_mask(diff, sd)
 
         #refine mask
         img = refine_mask(mask)
-        cv.imshow('mask', img)
-        cv.waitKey(0)
+        #cv.imshow('mask', img)
+        #cv.waitKey(0)
 
         new_frames.append(img)
     return np.array(new_frames)
 
 def refine_mask(mask):
-    mask = cv.dilate(mask, np.ones((3, 3), dtype=np.uint8), iterations=2)
+    #create round kernel and morph image
+    kernel = cv.getStructuringElement(cv.MORPH_ELLIPSE, (4, 4))
+    mask = cv.GaussianBlur(mask, (3,3), 0)
+    mask = cv.dilate(mask, kernel, iterations = 2)
     #find contours
     contours, _ = cv.findContours(mask, cv.RETR_TREE, cv.CHAIN_APPROX_SIMPLE)
     #draw the biggest contour
@@ -96,19 +90,21 @@ def getFrames(cam, num_frames= 30):
 
 def main():
     # for i in range(4):
-    #     video = cv.VideoCapture('data/cam' + str(i+1) + '/background.avi')
-    #     frames = getFrames(video)
-    #     background, sd = compose_background(frames)
-    #     cv.imwrite('data/cam' +  str(i+1) + '/background.png', background)
-    #     cv.imwrite('data/cam' +  str(i+1) + '/sd.png', sd)
+    #      video = cv.VideoCapture('data/cam' + str(i+1) + '/background.avi')
+    #      frames = getFrames(video)
+    #      background, sd = compose_background(frames)
+    #      cv.imwrite('data/cam' +  str(i+1) + '/background.png', background)
+    #      cv.imwrite('data/cam' +  str(i+1) + '/sd.png', sd)
 
-    cam_nr = 2
-    background = cv.imread('data/cam' + str(cam_nr) +'/background.png')
-    sd = cv.imread('data/cam' + str(cam_nr) +'/sd.png')
-    video = cv.VideoCapture('data/cam' + str(cam_nr) +'/video.avi')
-    new_frames = subtract_background(video, background, sd)
-    cv.imshow('frame', new_frames[0])
-    cv.waitKey(0)
+    for i in range(4):
+        background = cv.imread('data/cam' + str(i + 1) +'/background.png')
+        sd = cv.imread('data/cam' + str(i + 1) +'/sd.png')
+        video = cv.VideoCapture('data/cam' + str(i + 1) +'/video.avi')
+
+        new_frames = subtract_background(video, background, sd)
+        for x in range(len(new_frames)):
+            cv.imwrite('data/cam' + str(i+1) + '/masks/mask' + str(x) + '.png', new_frames[x])
+
 if __name__ == '__main__':
         main()
 
