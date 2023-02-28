@@ -18,17 +18,6 @@ def getConfig(cam_string):
     R = cam_xml.getNode('RotationMatrix').mat()
     T = (cam_xml.getNode('TranslationMatrix').mat() / scaling)
 
-    # #flip the y and z axis and negate z
-    # T = [T[0], -T[2], T[1]]
-    # # rotate R by 180 degrees around y axis
-    # R = R * np.matrix([[0, 0, -1], [0, 1, 0], [1, 0, 0]])
-    # #rotete R by -90 degrees around z axis
-    # R = R * np.matrix([[0, -1, 0], [1, 0, 0], [0, 0, 1]])
-
-
-    print(cam_string)
-    print(T)
-
     return cam, dist, rvecs, tvecs, R, T
 
 #get config for each camera
@@ -37,39 +26,24 @@ mtx2, dist2, rvecs2, tvecs2, R2, T2 = getConfig('cam2')
 mtx3, dist3, rvecs3, tvecs3, R3, T3 = getConfig('cam3')
 mtx4, dist4, rvecs4, tvecs4, R4, T4 = getConfig('cam4')
 
-mask10 = cv.imread('data\cam1\masks\mask0.png')
-mask11 = cv.imread('data\cam1\masks\mask1.png')
-mask12 = cv.imread('data\cam1\masks\mask2.png')
-mask13 = cv.imread('data\cam1\masks\mask3.png')
-mask14 = cv.imread('data\cam1\masks\mask4.png')
-masks1 = [mask10, mask11, mask12, mask13, mask14]
-mask_height, mask_width, _ = mask10.shape
-mask20 = cv.imread('data\cam2\masks\mask0.png')
-mask21 = cv.imread('data\cam2\masks\mask1.png')
-mask22 = cv.imread('data\cam2\masks\mask2.png')
-mask23 = cv.imread('data\cam2\masks\mask3.png')
-mask24 = cv.imread('data\cam2\masks\mask4.png')
-masks2 = [mask20, mask21, mask22, mask23, mask24]
-mask30 = cv.imread('data\cam3\masks\mask0.png')
-mask31 = cv.imread('data\cam3\masks\mask1.png')
-mask32 = cv.imread('data\cam3\masks\mask2.png')
-mask33 = cv.imread('data\cam3\masks\mask3.png')
-mask34 = cv.imread('data\cam3\masks\mask4.png')
-masks3 = [mask30, mask31, mask32, mask33, mask34]
-mask40 = cv.imread('data\cam4\masks\mask0.png')
-mask41 = cv.imread('data\cam4\masks\mask1.png')
-mask42 = cv.imread('data\cam4\masks\mask2.png')
-mask43 = cv.imread('data\cam4\masks\mask3.png')
-mask44 = cv.imread('data\cam4\masks\mask4.png')
-masks4 = [mask40, mask41, mask42, mask43, mask44]
+def loadMasks(cam_string):
+    masks = []
+    for i in range(5):
+        mask = cv.imread(f'data\{cam_string}\masks\mask{i}.png')
+        masks.append(mask)
+    return masks
+
+masks1 = loadMasks('cam1')
+mask_height, mask_width, _ = masks1[0].shape
+masks2 = loadMasks('cam2')
+masks3 = loadMasks('cam3')
+masks4 = loadMasks('cam4')
+
 video1 = cv.VideoCapture('data/cam1/background.avi')
-frame1 = video1.read()
 video2 = cv.VideoCapture('data/cam2/background.avi')
-frame2 = video2.read()
 video3 = cv.VideoCapture('data/cam3/background.avi')
-frame3 = video3.read()
 video4 = cv.VideoCapture('data/cam4/background.avi')
-frame4 = video4.read()
+videos = [video1, video2, video3, video4]
 
 voxelFrameIdx = 0
 
@@ -99,7 +73,6 @@ def generate_voxel_lookup_table(width, height, depth):
     rvec3 = cv.Rodrigues(R3)[0]
     rvec4 = cv.Rodrigues(R4)[0]
     print(objpts)
-    # project to each camera
     # project to each camera
     imgpts1 = cv.projectPoints(objpts, rvec1, tvecs1, mtx1, dist1)[0]
     imgpts2 = cv.projectPoints(objpts, rvec2, tvecs2, mtx2, dist2)[0]
@@ -148,11 +121,7 @@ def set_voxel_positions(width, height, depth):
                     for v in voxels:
                         vx, vy, vz = v
                         data.append([vx*block_size, vy*block_size, vz*block_size])
-                    # inAll, color = inMask(imgpts, [mask1, mask2, mask3, mask4], [frame1, frame2, frame3, frame4])
-                    # if inAll:
-                    #     data.append([x*block_size - width/2, y*block_size, z*block_size - depth/2])
-    cv.imshow('mask', mask20)
-    # data.append([0*block_size - width/2, 0*block_size, 0*block_size - depth/2])
+    cv.imshow('mask', masks2[0])
 
     return data
 
@@ -183,41 +152,15 @@ def inMask(imgpt, masks, imgs):
 def get_cam_positions():
     # Generates dummy camera locations at the 4 corners of the room
     # TODO: You need to input the estimated locations of the 4 cameras in the world coordinates.
-    # return [[-64 * block_size, 64 * block_size, 63 * block_size],
-    #         [63 * block_size, 64 * block_size, 63 * block_size],
-    #         [63 * block_size, 64 * block_size, -64 * block_size],
-    #         [-64 * block_size, 64 * block_size, -64 * block_size]]
-    # swap y and z
-
     return [T1, T2, T3, T4]
 
 
 def get_cam_rotation_matrices():
     # # Generates dummy camera rotation matrices, looking down 45 degrees towards the center of the room
     # # TODO: You need to input the estimated camera rotation matrices (4x4) of the 4 cameras in the world coordinates.
-    # cam_angles = [rvecs1, rvecs2, rvecs3, rvecs4]
-    # cam_rotations = [glm.mat4(1), glm.mat4(1), glm.mat4(1), glm.mat4(1)]
-    # for c in range(len(cam_rotations)):
-    #     cam_rotations[c] = glm.rotate(cam_rotations[c], cam_angles[c][0], [1, 0, 0])
-    #     cam_rotations[c] = glm.rotate(cam_rotations[c], cam_angles[c][1], [0, 1, 0])
-    #     cam_rotations[c] = glm.rotate(cam_rotations[c], cam_angles[c][2], [0, 0, 1])
-    #
-    # return cam_rotations
-    # Generates dummy camera rotation matrices, looking down 45 degrees towards the center of the room
-    # TODO: You need to input the estimated camera rotation matrices (4x4) of the 4 cameras in the world coordinates.
     cam_angles = [R1, R2, R3, R4]
     cam_rotations = []
-    # # print(cam_rotations[0])
-    # for c in range(len(cam_rotations)):
-    #     cam_rotations[c] = glm.rotate(cam_rotations[c], cam_angles[c][0][0], [1,0,0])
-    #     cam_rotations[c] = glm.rotate(cam_rotations[c], cam_angles[c][1][0], [0,1,0])
-    #     cam_rotations[c] = glm.rotate(cam_rotations[c], cam_angles[c][2][0], [0,0,1])
-    # print(cam_rotations[0])
     for c in range(len(cam_angles)):
         cam_rotations.append(glm.mat4(glm.mat3(cam_angles[c])))
-    print(cam_rotations[0])
-    # # p
-    # print(R1)
-    # print(cam_rotations[0])
 
     return cam_rotations
