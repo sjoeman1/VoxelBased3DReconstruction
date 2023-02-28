@@ -18,12 +18,12 @@ def getConfig(cam_string):
     R = cam_xml.getNode('RotationMatrix').mat()
     T = (cam_xml.getNode('TranslationMatrix').mat() / scaling)
 
-    #flip the y and z axis and negate z
-    T = [T[0], -T[2], T[1]]
-    # rotate R by 180 degrees around y axis
-    R = R * np.matrix([[0, 0, -1], [0, 1, 0], [1, 0, 0]])
-    #rotete R by -90 degrees around z axis
-    R = R * np.matrix([[0, -1, 0], [1, 0, 0], [0, 0, 1]])
+    # #flip the y and z axis and negate z
+    # T = [T[0], -T[2], T[1]]
+    # # rotate R by 180 degrees around y axis
+    # R = R * np.matrix([[0, 0, -1], [0, 1, 0], [1, 0, 0]])
+    # #rotete R by -90 degrees around z axis
+    # R = R * np.matrix([[0, -1, 0], [1, 0, 0], [0, 0, 1]])
 
 
     print(cam_string)
@@ -37,12 +37,31 @@ mtx2, dist2, rvecs2, tvecs2, R2, T2 = getConfig('cam2')
 mtx3, dist3, rvecs3, tvecs3, R3, T3 = getConfig('cam3')
 mtx4, dist4, rvecs4, tvecs4, R4, T4 = getConfig('cam4')
 
-mask1 = cv.imread('data\cam1\masks\mask0.png')
-mask_height, mask_width, _ = mask1.shape
-mask2 = cv.imread('data\cam2\masks\mask0.png')
-mask3 = cv.imread('data\cam3\masks\mask0.png')
-mask4 = cv.imread('data\cam4\masks\mask0.png')
-masks = [mask1, mask2, mask3, mask4]
+mask10 = cv.imread('data\cam1\masks\mask0.png')
+mask11 = cv.imread('data\cam1\masks\mask1.png')
+mask12 = cv.imread('data\cam1\masks\mask2.png')
+mask13 = cv.imread('data\cam1\masks\mask3.png')
+mask14 = cv.imread('data\cam1\masks\mask4.png')
+masks1 = [mask10, mask11, mask12, mask13, mask14]
+mask_height, mask_width, _ = mask10.shape
+mask20 = cv.imread('data\cam2\masks\mask0.png')
+mask21 = cv.imread('data\cam2\masks\mask1.png')
+mask22 = cv.imread('data\cam2\masks\mask2.png')
+mask23 = cv.imread('data\cam2\masks\mask3.png')
+mask24 = cv.imread('data\cam2\masks\mask4.png')
+masks2 = [mask20, mask21, mask22, mask23, mask24]
+mask30 = cv.imread('data\cam3\masks\mask0.png')
+mask31 = cv.imread('data\cam3\masks\mask1.png')
+mask32 = cv.imread('data\cam3\masks\mask2.png')
+mask33 = cv.imread('data\cam3\masks\mask3.png')
+mask34 = cv.imread('data\cam3\masks\mask4.png')
+masks3 = [mask30, mask31, mask32, mask33, mask34]
+mask40 = cv.imread('data\cam4\masks\mask0.png')
+mask41 = cv.imread('data\cam4\masks\mask1.png')
+mask42 = cv.imread('data\cam4\masks\mask2.png')
+mask43 = cv.imread('data\cam4\masks\mask3.png')
+mask44 = cv.imread('data\cam4\masks\mask4.png')
+masks4 = [mask40, mask41, mask42, mask43, mask44]
 video1 = cv.VideoCapture('data/cam1/background.avi')
 frame1 = video1.read()
 video2 = cv.VideoCapture('data/cam2/background.avi')
@@ -55,6 +74,8 @@ frame4 = video4.read()
 voxelFrameIdx = 0
 
 lookupTable = {}
+
+clicks = 0
 
 
 
@@ -88,6 +109,7 @@ def generate_voxel_lookup_table(width, height, depth):
     imgpts = [imgpts1, imgpts2, imgpts3, imgpts4]
     #save to dict
     print(imgpts1)
+
     for c in range(4):
         # iterate over imgpts and append objpts to lookupTable[c,x,y]
         for i in range(len(imgpts[c])):
@@ -104,12 +126,18 @@ def generate_voxel_lookup_table(width, height, depth):
 
 def set_voxel_positions(width, height, depth):
     global lookupTable
+    global clicks
     # Generates random voxel locations
     # TODO: You need to calculate proper voxel arrays instead of random ones.
     #get mask.png from every camera
     print("generating")
     generate_voxel_lookup_table(width, height, depth)
     data = []
+    maskIdx = clicks % 5
+    print("maskIdx: " + str(maskIdx))
+    masks = [masks1[maskIdx], masks2[maskIdx], masks3[maskIdx], masks4[maskIdx]]
+    clicks += 1
+
     for c in range(1,2):
         for x in range(mask_width):
             for y in range(mask_height):
@@ -120,10 +148,10 @@ def set_voxel_positions(width, height, depth):
                     for v in voxels:
                         vx, vy, vz = v
                         data.append([vx*block_size, vy*block_size, vz*block_size])
-                # inAll, color = inMask(imgpts, [mask1, mask2, mask3, mask4], [frame1, frame2, frame3, frame4])
-                # if inAll:
-                #     data.append([x*block_size - width/2, y*block_size, z*block_size - depth/2])
-    cv.imshow('mask', mask2)
+                    # inAll, color = inMask(imgpts, [mask1, mask2, mask3, mask4], [frame1, frame2, frame3, frame4])
+                    # if inAll:
+                    #     data.append([x*block_size - width/2, y*block_size, z*block_size - depth/2])
+    cv.imshow('mask', mask20)
     # data.append([0*block_size - width/2, 0*block_size, 0*block_size - depth/2])
 
     return data
