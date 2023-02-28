@@ -72,16 +72,13 @@ def generate_voxel_lookup_table(width, height, depth):
     rvec2 = cv.Rodrigues(R2)[0]
     rvec3 = cv.Rodrigues(R3)[0]
     rvec4 = cv.Rodrigues(R4)[0]
-    print(objpts)
     # project to each camera
     imgpts1 = cv.projectPoints(objpts, rvec1, tvecs1, mtx1, dist1)[0]
     imgpts2 = cv.projectPoints(objpts, rvec2, tvecs2, mtx2, dist2)[0]
     imgpts3 = cv.projectPoints(objpts, rvec3, tvecs3, mtx3, dist3)[0]
     imgpts4 = cv.projectPoints(objpts, rvec4, tvecs4, mtx4, dist4)[0]
-    print(imgpts1)
     imgpts = [imgpts1, imgpts2, imgpts3, imgpts4]
-    #save to dict
-    print(imgpts1)
+    #save to dictg
 
     for c in range(4):
         # iterate over imgpts and append objpts to lookupTable[c,x,y]
@@ -115,8 +112,10 @@ def set_voxel_positions(width, height, depth):
         for x in range(mask_width):
             for y in range(mask_height):
                 if (masks[c][y][x] != 255).all():
+
                     continue
                 if (c, x, y) in lookupTable:
+                    print("found")
                     voxels = lookupTable[(c, x, y)]
                     for v in voxels:
                         vx, vy, vz = v
