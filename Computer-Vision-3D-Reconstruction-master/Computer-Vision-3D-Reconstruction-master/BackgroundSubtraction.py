@@ -89,12 +89,12 @@ def getFrames(cam, num_frames= 30):
     return np.array(frames)
 
 def main():
-    # for i in range(4):
-    #      video = cv.VideoCapture('data/cam' + str(i+1) + '/background.avi')
-    #      frames = getFrames(video)
-    #      background, sd = compose_background(frames)
-    #      cv.imwrite('data/cam' +  str(i+1) + '/background.png', background)
-    #      cv.imwrite('data/cam' +  str(i+1) + '/sd.png', sd)
+    for i in range(4):
+         video = cv.VideoCapture('data/cam' + str(i+1) + '/background.avi')
+         frames = getFrames(video)
+         background, sd = compose_background(frames)
+         cv.imwrite('data/cam' +  str(i+1) + '/background.png', background)
+         cv.imwrite('data/cam' +  str(i+1) + '/sd.png', sd)
 
     for i in range(4):
         background = cv.imread('data/cam' + str(i + 1) +'/background.png')
@@ -102,8 +102,20 @@ def main():
         video = cv.VideoCapture('data/cam' + str(i + 1) +'/video.avi')
 
         new_frames = subtract_background(video, background, sd)
-        for x in range(len(new_frames)):
-            cv.imwrite('data/cam' + str(i+1) + '/masks/mask' + str(x) + '.png', new_frames[x])
+        # for x in range(len(new_frames)):
+        #     cv.imwrite('data/cam' + str(i+1) + '/masks/mask' + str(x) + '.png', new_frames[x])
+        store_masks(new_frames, i+1)
+def store_masks(masks, cam_num):
+    #store masks in a avi file
+    height, width = masks[0].shape
+    size = (width, height)
+    fourcc = cv.VideoWriter_fourcc(*'MJPG')
+    out = cv.VideoWriter('data/cam' + str(cam_num) + '/masks.avi', fourcc, 15, size, False)
+    for i in range(len(masks)):
+        out.write(masks[i])
+    out.release()
+
+
 
 if __name__ == '__main__':
         main()

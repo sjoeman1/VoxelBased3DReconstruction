@@ -28,9 +28,15 @@ mtx4, dist4, rvecs4, tvecs4, R4, T4 = getConfig('cam4')
 
 def loadMasks(cam_string):
     masks = []
-    for i in range(5):
-        mask = cv.imread(f'data\{cam_string}\masks\mask{i}.png')
-        masks.append(mask)
+    #load masks from avi file
+    cap = cv.VideoCapture(f'data\{cam_string}\masks.avi')
+    while cap.isOpened():
+        ret, frame = cap.read()
+        if ret:
+            masks.append(frame)
+        else:
+            break
+    cap.release()
     return masks
 
 masks1 = loadMasks('cam1')
