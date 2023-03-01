@@ -9,6 +9,8 @@ block_size = 1.0
 
 scaling = 50
 
+voxel_scale = 27
+
 def getConfig(cam_string):
     cam_xml = cv.FileStorage(f'data\{cam_string}\config.xml', cv.FileStorage_READ)
     cam = cam_xml.getNode('CameraMatrix').mat()
@@ -73,7 +75,11 @@ def generate_grid(width, depth):
 def generate_voxel_lookup_table(width, height, depth):
     # generate meshgrid of width, height, depth and project to each camera
     global lookupTable
+
+    print("generating lookup table")
     objpts = np.float32(np.mgrid[-width/2:width/2, 0:height, -depth/2:depth/2].T.reshape(-1, 3))
+
+    objpts = objpts * voxel_scale
     rvec1 = cv.Rodrigues(R1)[0]
     rvec2 = cv.Rodrigues(R2)[0]
     rvec3 = cv.Rodrigues(R3)[0]
@@ -98,34 +104,43 @@ def generate_voxel_lookup_table(width, height, depth):
             lookupTable[(c, x, y)].append([objpts[i][0], objpts[i][1], objpts[i][2]])
     #save dict to file
     print("saving lookup table")
-    # np.save('voxel_lookup_table.npy', lookupTable)
+    np.save('lookupTable.npy', lookupTable)
+    print("done")
 
 def set_voxel_positions(width, height, depth):
     global lookupTable
     global clicks
+    global voxel_scale
+
+    if not lookupTable:
+        lookupTable = np.load('voxel_lookup_table.npy', allow_pickle=True).item()
+        print("loaded lookup table")
     # Generates random voxel locations
     # TODO: You need to calculate proper voxel arrays instead of random ones.
     #get mask.png from every camera
-    print("generating")
-    generate_voxel_lookup_table(width, height, depth)
     data = []
     maskIdx = clicks % 5
     print("maskIdx: " + str(maskIdx))
     masks = [masks1[maskIdx], masks2[maskIdx], masks3[maskIdx], masks4[maskIdx]]
     clicks += 1
 
+    shapes = []
+
     for c in range(1,2):
         for x in range(mask_width):
             for y in range(mask_height):
                 if (masks[c][y][x] != 255).all():
-
                     continue
                 if (c, x, y) in lookupTable:
                     print("found")
                     voxels = lookupTable[(c, x, y)]
                     for v in voxels:
                         vx, vy, vz = v
-                        data.append([vx*block_size, vy*block_size, vz*block_size])
+                        shapes[c].append([vx*block_size / voxel_scale, vy*block_size / voxel_scale, vz*block_size / voxel_scale])
+    # calculate intersecion of shapes
+    data = list(set.intersection(*map(set, shapes)))
+
+
     cv.imshow('mask', masks2[0])
 
     return data
