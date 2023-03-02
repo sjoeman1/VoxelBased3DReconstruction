@@ -7,8 +7,6 @@ import cv2 as cv
 
 block_size = 1.0
 
-scaling = 50
-
 voxel_scale = 27
 
 
@@ -19,7 +17,8 @@ def getConfig(cam_string):
     rvecs = cam_xml.getNode('rvec').mat()
     tvecs = cam_xml.getNode('tvecs').mat()
     R = cam_xml.getNode('RotationMatrix').mat()
-    T = (cam_xml.getNode('TranslationMatrix').mat() / scaling)
+    T = (cam_xml.getNode('TranslationMatrix').mat() / voxel_scale)
+
 
     return cam, dist, rvecs, tvecs, R, T
 
@@ -180,6 +179,7 @@ def get_cam_rotation_matrices():
     cam_angles = [R1, R2, R3, R4]
     cam_rotations = []
     for c in range(len(cam_angles)):
-        cam_rotations.append(glm.mat4(glm.mat3(cam_angles[c])))
+        #rotate 90 degrees around y axis
+        cam_rotations.append(glm.rotate(glm.mat4(glm.mat3(cam_angles[c])), glm.radians(90), glm.vec3(0, 0, 1)))
 
     return cam_rotations

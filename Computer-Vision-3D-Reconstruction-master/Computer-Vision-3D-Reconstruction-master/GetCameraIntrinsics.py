@@ -241,21 +241,24 @@ def main():
     img3 = calibrateCam(camIntrinsic3, camExtrinsic3, 'cam3')
     img4 = calibrateCam(camIntrinsic4, camExtrinsic4, 'cam4')
     print('done ')
-    img1 = camExtrinsic1.read()[1]
-    img2 = camExtrinsic2.read()[1]
-    img3 = camExtrinsic3.read()[1]
-    img4 = camExtrinsic4.read()[1]
-
-    drawCamPos(img1, cam1xml)
-    drawCamPos(img2, cam2xml)
-    drawCamPos(img3, cam3xml)
-    drawCamPos(img4, cam4xml)
+    # img1 = camExtrinsic1.read()[1]
+    # img2 = camExtrinsic2.read()[1]
+    # img3 = camExtrinsic3.read()[1]
+    # img4 = camExtrinsic4.read()[1]
+    #
+    # drawCamPos(img1, cam1xml)
+    # drawCamPos(img2, cam2xml)
+    # drawCamPos(img3, cam3xml)
+    # drawCamPos(img4, cam4xml)
 
 
 def calibrateCam(intrinsic, extrinsic, cam_string):
     print(cam_string)
-    frames = getFrames(intrinsic, 20)
-    ret, mtx, dist, rvecs, tvecs = Offline(frames)
+    # frames = getFrames(intrinsic, 20)
+    # ret, mtx, dist, rvecs, tvecs = Offline(frames)
+    cam_xml = cv.FileStorage(f'data\{cam_string}\config.xml', cv.FileStorage_READ)
+    mtx = cam_xml.getNode('CameraMatrix').mat()
+    dist = cam_xml.getNode('DistortionCoeffs').mat()
 
 
     print(f'calibration {cam_string}:\n cam:\n{mtx},\n distortion:\n {dist}')
@@ -278,16 +281,15 @@ def calibrateCam(intrinsic, extrinsic, cam_string):
     ret, rvecs, tvecs = cv.solvePnP(objp, corners2, mtx, dist)
 
     R = cv.Rodrigues(rvecs)[0]
+
+
+    #rotete R by 90 degrees around z axis
+    R = R * np.matrix([[0, -1, 0], [1, 0, 0], [0, 0, 1]])
+
     T = -numpy.matrix(R).T * numpy.matrix(tvecs)
 
     #flip the y and z axis and negate z of T to get the correct translation
     T = np.matrix([[T[0, 0]], [-T[2, 0]], [T[1, 0]]])
-
-
-    # rotate R by 180 degrees around y axis
-    R = R * np.matrix([[0, 0, -1], [0, 1, 0], [1, 0, 0]])
-    #rotete R by -90 degrees around z axis
-    R = R * np.matrix([[0, -1, 0], [1, 0, 0], [0, 0, 1]])
 
     print(f'extrinsics {cam_string}:\n rotation:{rvecs},\n translation:\n {tvecs}, \n rotation matrix:\n {R}, \n translation matrix:\n {T}')
 
