@@ -32,14 +32,7 @@ def loadMasks(cam_string):
     masks = []
     #load masks from avi file
     cap = cv.VideoCapture(f'data\{cam_string}\masks.avi')
-    while cap.isOpened():
-        ret, frame = cap.read()
-        if ret:
-            masks.append(frame)
-        else:
-            break
-    cap.release()
-    return masks
+    return cap
 
 masks1 = loadMasks('cam1')
 mask_height, mask_width, _ = masks1[0].shape
@@ -101,7 +94,9 @@ def generate_voxel_lookup_table(width, height, depth):
                 continue
             if lookupTable.get((c, x, y)) is None:
                 lookupTable[(c, x, y)] = []
-            lookupTable[(c, x, y)].append([objpts[i][0]*block_size / voxel_scale, objpts[i][1]*block_size / voxel_scale, objpts[i][2]*block_size / voxel_scale])
+            lookupTable[(c, x, y)].append([objpts[i][0]*block_size / voxel_scale,
+                                           objpts[i][1]*block_size / voxel_scale,
+                                           objpts[i][2]*block_size / voxel_scale])
     #save dict to file
     print("saving lookup table")
     np.save('voxel_lookup_table.npy', lookupTable)
@@ -119,9 +114,9 @@ def set_voxel_positions(width, height, depth):
     # TODO: You need to calculate proper voxel arrays instead of random ones.
     #get mask.png from every camera
     data = []
-    maskIdx = clicks % 5
-    print("maskIdx: " + str(maskIdx))
-    masks = [masks1[maskIdx], masks2[maskIdx], masks3[maskIdx], masks4[maskIdx]]
+    print("frame: " + clicks)
+    masks = [masks1.read(), masks2.read(), masks3.read(), masks4.read()]
+    frames = [video1.read(), video2.read(), video3.read(), video4.read()]
     clicks += 1
 
     # create an zerros array of the shape width, height, depth
@@ -141,6 +136,8 @@ def set_voxel_positions(width, height, depth):
         print(f'finished camera {c}')
 
     # filter count in shapes to only include voxels that are in all masks
+    # inAllCams = (countInShapes == 4).nonzero()
+    # data = np.array(inAllCams[0], inAllCams[1], inAllCams[2]).T
     inAllCams = np.where(countInShapes == 4, 1, 0)
     # add voxels in countInShapes to data
     for x in range(int(-width/2), int(width/2)):
@@ -149,9 +146,6 @@ def set_voxel_positions(width, height, depth):
                 if inAllCams[x][y][z] == 1:
                     data.append([x, y, z])
 
-
-
-    cv.imshow('mask', masks2[0])
 
     return data
 
