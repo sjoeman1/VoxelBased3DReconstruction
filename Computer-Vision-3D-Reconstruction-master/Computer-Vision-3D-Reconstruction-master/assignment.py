@@ -101,10 +101,10 @@ def generate_voxel_lookup_table(width, height, depth):
                 continue
             if lookupTable.get((c, x, y)) is None:
                 lookupTable[(c, x, y)] = []
-            lookupTable[(c, x, y)].append([objpts[i][0], objpts[i][1], objpts[i][2]])
+            lookupTable[(c, x, y)].append([objpts[i][0]*block_size / voxel_scale, objpts[i][1]*block_size / voxel_scale, objpts[i][2]*block_size / voxel_scale])
     #save dict to file
     print("saving lookup table")
-    np.save('lookupTable.npy', lookupTable)
+    np.save('voxel_lookup_table.npy', lookupTable)
     print("done")
 
 def set_voxel_positions(width, height, depth):
@@ -124,21 +124,31 @@ def set_voxel_positions(width, height, depth):
     masks = [masks1[maskIdx], masks2[maskIdx], masks3[maskIdx], masks4[maskIdx]]
     clicks += 1
 
-    shapes = []
+    # create an zerros array of the shape width, height, depth
+    countInShapes = np.zeros((width, height, depth))
 
-    for c in range(1,2):
+    for c in range(4):
         for x in range(mask_width):
             for y in range(mask_height):
                 if (masks[c][y][x] != 255).all():
                     continue
                 if (c, x, y) in lookupTable:
-                    print("found")
                     voxels = lookupTable[(c, x, y)]
                     for v in voxels:
                         vx, vy, vz = v
-                        shapes[c].append([vx*block_size / voxel_scale, vy*block_size / voxel_scale, vz*block_size / voxel_scale])
-    # calculate intersecion of shapes
-    data = list(set.intersection(*map(set, shapes)))
+                        # add one to countInShapes at the voxel position
+                        countInShapes[int(vx)][int(vy)][int(vz)] += 1
+        print(f'finished camera {c}')
+
+    # filter count in shapes to only include voxels that are in all masks
+    inAllCams = np.where(countInShapes == 4, 1, 0)
+    # add voxels in countInShapes to data
+    for x in range(int(-width/2), int(width/2)):
+        for y in range(height):
+            for z in range(int(-depth/2), int(depth/2)):
+                if inAllCams[x][y][z] == 1:
+                    data.append([x, y, z])
+
 
 
     cv.imshow('mask', masks2[0])
