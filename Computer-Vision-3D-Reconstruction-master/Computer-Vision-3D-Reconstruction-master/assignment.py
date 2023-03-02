@@ -35,7 +35,7 @@ def loadMasks(cam_string):
     return cap
 
 masks1 = loadMasks('cam1')
-mask_height, mask_width, _ = masks1[0].shape
+mask_height, mask_width = int(masks1.get(cv.CAP_PROP_FRAME_HEIGHT)), int(masks1.get(cv.CAP_PROP_FRAME_WIDTH))
 masks2 = loadMasks('cam2')
 masks3 = loadMasks('cam3')
 masks4 = loadMasks('cam4')
@@ -114,9 +114,9 @@ def set_voxel_positions(width, height, depth):
     # TODO: You need to calculate proper voxel arrays instead of random ones.
     #get mask.png from every camera
     data = []
-    print("frame: " + clicks)
-    masks = [masks1.read(), masks2.read(), masks3.read(), masks4.read()]
-    frames = [video1.read(), video2.read(), video3.read(), video4.read()]
+    print("frame: " + str(clicks))
+    masks = [masks1.read()[1], masks2.read()[1], masks3.read()[1], masks4.read()[1]]
+    frames = [video1.read()[1], video2.read()[1], video3.read()[1], video4.read()[1]]
     clicks += 1
 
     # create an zerros array of the shape width, height, depth
