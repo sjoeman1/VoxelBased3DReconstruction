@@ -35,14 +35,7 @@ def load_avi(cam_number, name):
     # load frames from avi file
     frames = []
     cap = cv.VideoCapture('data/cam' + str(cam_number) + '/' + name + '.avi')
-    while cap.isOpened():
-        ret, frame = cap.read()
-        if ret:
-            frames.append(frame)
-        else:
-            break
-    cap.release()
-    return frames
+    return cap
 
 
 masks1 = load_avi(1, 'masks')
@@ -67,7 +60,6 @@ voxelFrameIdx = 0
 
 lookupTable = {}
 
-clicks = 0
 
 
 def generate_grid(width, depth):
@@ -128,10 +120,8 @@ def set_voxel_positions(width, height, depth):
     # TODO: You need to calculate proper voxel arrays instead of random ones.
     # get mask.png from every camera
     data = []
-    maskIdx = clicks % 5
-    print("maskIdx: " + str(maskIdx))
-    masks = [masks1[maskIdx], masks2[maskIdx], masks3[maskIdx], masks4[maskIdx]]
-    clicks += 1
+    masks = [masks1.read(), masks2.read(), masks3.read(), masks4.read()]
+    frames = [frames1.read(), frames2.read(), frames3.read(), frames4.read()]
 
     shapes = []
     col = []
@@ -144,7 +134,7 @@ def set_voxel_positions(width, height, depth):
                 if (c, x, y) in lookupTable:
                     print("found")
                     voxels = lookupTable[(c, x, y)]
-                    color = get_color(c, y, x)
+                    color = get_color(c, y, x, frames)
                     for v in voxels:
                         vx, vy, vz = v
                         shapes[c].append([vx * block_size / voxel_scale, vy * block_size / voxel_scale,
@@ -167,17 +157,11 @@ def set_voxel_positions(width, height, depth):
     # return data, colors
 
 
-def get_color(c, y, x):
+def get_color(c, y, x, frames):
     color = np.zeros(3)
-    match c:
-        case 1:
-            color = frames1[y, x]
-        case 2:
-            color = frames2[y, x]
-        case 3:
-            color = frames3[y, x]
-        case 4:
-            color = frames4[y, x]
+
+    color = frames[c][y][x]
+
     return color
 
 

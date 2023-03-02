@@ -132,3 +132,4 @@ dmypy.json
 .pyre/
 
 voxel_lookup_table.npy
+lookupTable.npy
