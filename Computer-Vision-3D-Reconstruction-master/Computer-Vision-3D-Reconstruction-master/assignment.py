@@ -127,7 +127,7 @@ def set_voxel_positions(width, height, depth):
     frames = [video1.read()[1], video2.read()[1], video3.read()[1], video4.read()[1]]
     clicks += 1
 
-    # create an zerros array of the shape width, height, depth
+    # create a zerros array of the shape width, height, depth
     countInShapes = np.zeros((width, height, depth))
 
     for c in range(4):
@@ -166,29 +166,6 @@ def get_color(c, y, x, frames):
     color = frames[c][y][x]
 
     return color
-
-
-def inMask(imgpt, masks, imgs):
-    # project x,y,z to each camera
-    # add it to data if it is in every mask
-    # print(masks[0][int(295)][int(351)])
-    color = np.zeros(3)
-    for i in range(3, 4):
-        xpoint = int(imgpt[i][0])
-        ypoint = int(imgpt[i][1])
-        # check if point is out of bounds
-        if xpoint < 0 or xpoint >= masks[0].shape[1] or ypoint < 0 or ypoint >= masks[0].shape[0]:
-            return False, color
-        # return if point in mask is white
-        inMask = (masks[i][ypoint][xpoint] == 255).all()
-        if not inMask:
-            return False, color
-
-        # take 25 procent of the img color
-        # color += imgs[i][int(xpoint)][int(ypoint)]
-    # return if point in mask is white
-
-    return True, color
 
 
 def get_cam_positions():

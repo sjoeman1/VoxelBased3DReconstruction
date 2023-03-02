@@ -20,7 +20,10 @@ def compose_background(frames):
     return np.uint8(average), np.uint8(sd)
 
 
-def subtract_background(frames, background, sd):
+def subtract_background(video, background, sd):
+    new_frames = []
+    frames = getFrames(video, num_frames= 5)
+    i = 0
     for frame in frames:
         hsv = cv.cvtColor(frame, cv.COLOR_BGR2HSV)
 
@@ -43,7 +46,7 @@ def refine_mask(mask):
     # create round kernel and morph image
     kernel = cv.getStructuringElement(cv.MORPH_ELLIPSE, (4, 4))
     mask = cv.GaussianBlur(mask, (3, 3), 0)
-    mask = cv.dilate(mask, kernel, iterations=2)
+    mask = cv.dilate(mask, kernel, iterations=1)
     # find contours
     contours, _ = cv.findContours(mask, cv.RETR_TREE, cv.CHAIN_APPROX_SIMPLE)
     # draw the biggest contour
@@ -91,32 +94,33 @@ def getFrames(cam, num_frames=30):
 
 def main():
     #generate background and sd images for each camera
-    for i in range(4):
-        video = cv.VideoCapture('data/cam' + str(i + 1) + '/background.avi')
-        frames = getFrames(video)
-        background, sd = compose_background(frames)
-        cv.imwrite('data/cam' + str(i + 1) + '/background.png', background)
-        cv.imwrite('data/cam' + str(i + 1) + '/sd.png', sd)
+    # for i in range(4):
+    #     video = cv.VideoCapture('data/cam' + str(i + 1) + '/background.avi')
+    #     frames = getFrames(video)
+    #     background, sd = compose_background(frames)
+    #     cv.imwrite('data/cam' + str(i + 1) + '/background.png', background)
+    #     cv.imwrite('data/cam' + str(i + 1) + '/sd.png', sd)
     #generate mask and frame images for each camera
     for i in range(4):
         background = cv.imread('data/cam' + str(i + 1) + '/background.png')
         sd = cv.imread('data/cam' + str(i + 1) + '/sd.png')
         video = cv.VideoCapture('data/cam' + str(i + 1) + '/video.avi')
-        frames = getFrames(video, num_frames=5)
-        masks = subtract_background(frames, background, sd)
+        video = cv.VideoCapture('data/cam' + str(i + 1) +'/video.avi')
 
-        store_video('masks', masks, i + 1)
-        store_video('frames', frames, i + 1)
+        new_frames = subtract_background(video, background, sd)
+        # for x in range(len(new_frames)):
+        #     cv.imwrite('data/cam' + str(i+1) + '/masks/mask' + str(x) + '.png', new_frames[x])
+        store_masks(new_frames, i+1)
 
 
-def store_video(name, frames, cam_num):
-    # store frames in a avi file
+def store_masks(masks, cam_num):
+    #store masks in a avi file
     height, width = masks[0].shape
     size = (width, height)
     fourcc = cv.VideoWriter_fourcc(*'MJPG')
-    out = cv.VideoWriter('data/cam' + str(cam_num) + '/' + name + '.avi', fourcc, 15, size, False)
-    for i in range(len(frames)):
-        out.write(frames[i])
+    out = cv.VideoWriter('data/cam' + str(cam_num) + '/masks.avi', fourcc, 15, size, False)
+    for i in range(len(masks)):
+        out.write(masks[i])
     out.release()
 
 
