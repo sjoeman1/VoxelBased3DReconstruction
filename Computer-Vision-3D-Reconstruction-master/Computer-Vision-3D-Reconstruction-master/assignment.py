@@ -30,17 +30,18 @@ mtx2, dist2, rvecs2, tvecs2, R2, T2 = getConfig('cam2')
 mtx3, dist3, rvecs3, tvecs3, R3, T3 = getConfig('cam3')
 mtx4, dist4, rvecs4, tvecs4, R4, T4 = getConfig('cam4')
 
-def loadMasks(cam_string):
-    masks = []
-    #load masks from avi file
-    cap = cv.VideoCapture(f'data\{cam_string}\masks.avi')
+def load_avi(cam_number, name):
+    # load frames from avi file
+    frames = []
+    cap = cv.VideoCapture('data/cam' + str(cam_number) + '/' + name + '.avi')
     return cap
 
-masks1 = loadMasks('cam1')
+masks1 = load_avi(1, 'masks')
+masks2 = load_avi(2, 'masks')
+masks3 = load_avi(3, 'masks')
+masks4 = load_avi(4, 'masks')
 mask_height, mask_width = int(masks1.get(cv.CAP_PROP_FRAME_HEIGHT)), int(masks1.get(cv.CAP_PROP_FRAME_WIDTH))
-masks2 = loadMasks('cam2')
-masks3 = loadMasks('cam3')
-masks4 = loadMasks('cam4')
+
 
 frames1 = load_avi(1, 'frames')
 frames2 = load_avi(2, 'frames')
@@ -54,6 +55,8 @@ video4 = cv.VideoCapture('data/cam4/background.avi')
 videos = [video1, video2, video3, video4]
 
 voxelFrameIdx = 0
+
+clicks = 0
 
 lookupTable = {}
 
