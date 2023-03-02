@@ -11,6 +11,7 @@ scaling = 50
 
 voxel_scale = 27
 
+
 def getConfig(cam_string):
     cam_xml = cv.FileStorage(f'data\{cam_string}\config.xml', cv.FileStorage_READ)
     cam = cam_xml.getNode('CameraMatrix').mat()
@@ -22,30 +23,39 @@ def getConfig(cam_string):
 
     return cam, dist, rvecs, tvecs, R, T
 
-#get config for each camera
+
+# get config for each camera
 mtx1, dist1, rvecs1, tvecs1, R1, T1 = getConfig('cam1')
 mtx2, dist2, rvecs2, tvecs2, R2, T2 = getConfig('cam2')
 mtx3, dist3, rvecs3, tvecs3, R3, T3 = getConfig('cam3')
 mtx4, dist4, rvecs4, tvecs4, R4, T4 = getConfig('cam4')
 
-def loadMasks(cam_string):
-    masks = []
-    #load masks from avi file
-    cap = cv.VideoCapture(f'data\{cam_string}\masks.avi')
+
+def load_avi(cam_number, name):
+    # load frames from avi file
+    frames = []
+    cap = cv.VideoCapture('data/cam' + str(cam_number) + '/' + name + '.avi')
     while cap.isOpened():
         ret, frame = cap.read()
         if ret:
-            masks.append(frame)
+            frames.append(frame)
         else:
             break
     cap.release()
-    return masks
+    return frames
 
-masks1 = loadMasks('cam1')
+
+masks1 = load_avi(1, 'masks')
+masks2 = load_avi(2, 'masks')
+masks3 = load_avi(3, 'masks')
+masks4 = load_avi(4, 'masks')
+
 mask_height, mask_width, _ = masks1[0].shape
-masks2 = loadMasks('cam2')
-masks3 = loadMasks('cam3')
-masks4 = loadMasks('cam4')
+
+frames1 = load_avi(1, 'frames')
+frames2 = load_avi(2, 'frames')
+frames3 = load_avi(3, 'frames')
+frames4 = load_avi(4, 'frames')
 
 video1 = cv.VideoCapture('data/cam1/background.avi')
 video2 = cv.VideoCapture('data/cam2/background.avi')
@@ -60,16 +70,14 @@ lookupTable = {}
 clicks = 0
 
 
-
 def generate_grid(width, depth):
     # Generates the floor grid locations
     # You don't need to edit this function
     data = []
     for x in range(width):
         for z in range(depth):
-            data.append([x*block_size - width/2, -block_size, z*block_size - depth/2])
+            data.append([x * block_size - width / 2, -block_size, z * block_size - depth / 2])
     return data
-
 
 
 def generate_voxel_lookup_table(width, height, depth):
@@ -77,7 +85,7 @@ def generate_voxel_lookup_table(width, height, depth):
     global lookupTable
 
     print("generating lookup table")
-    objpts = np.float32(np.mgrid[-width/2:width/2, 0:height, -depth/2:depth/2].T.reshape(-1, 3))
+    objpts = np.float32(np.mgrid[-width / 2:width / 2, 0:height, -depth / 2:depth / 2].T.reshape(-1, 3))
 
     objpts = objpts * voxel_scale
     rvec1 = cv.Rodrigues(R1)[0]
@@ -90,7 +98,7 @@ def generate_voxel_lookup_table(width, height, depth):
     imgpts3 = cv.projectPoints(objpts, rvec3, tvecs3, mtx3, dist3)[0]
     imgpts4 = cv.projectPoints(objpts, rvec4, tvecs4, mtx4, dist4)[0]
     imgpts = [imgpts1, imgpts2, imgpts3, imgpts4]
-    #save to dictg
+    # save to dictg
 
     for c in range(4):
         # iterate over imgpts and append objpts to lookupTable[c,x,y]
@@ -102,10 +110,11 @@ def generate_voxel_lookup_table(width, height, depth):
             if lookupTable.get((c, x, y)) is None:
                 lookupTable[(c, x, y)] = []
             lookupTable[(c, x, y)].append([objpts[i][0], objpts[i][1], objpts[i][2]])
-    #save dict to file
+    # save dict to file
     print("saving lookup table")
     np.save('lookupTable.npy', lookupTable)
     print("done")
+
 
 def set_voxel_positions(width, height, depth):
     global lookupTable
@@ -117,7 +126,7 @@ def set_voxel_positions(width, height, depth):
         print("loaded lookup table")
     # Generates random voxel locations
     # TODO: You need to calculate proper voxel arrays instead of random ones.
-    #get mask.png from every camera
+    # get mask.png from every camera
     data = []
     maskIdx = clicks % 5
     print("maskIdx: " + str(maskIdx))
@@ -125,8 +134,9 @@ def set_voxel_positions(width, height, depth):
     clicks += 1
 
     shapes = []
+    col = []
 
-    for c in range(1,2):
+    for c in range(1, 2):
         for x in range(mask_width):
             for y in range(mask_height):
                 if (masks[c][y][x] != 255).all():
@@ -134,26 +144,52 @@ def set_voxel_positions(width, height, depth):
                 if (c, x, y) in lookupTable:
                     print("found")
                     voxels = lookupTable[(c, x, y)]
+                    color = get_color(c, y, x)
                     for v in voxels:
                         vx, vy, vz = v
-                        shapes[c].append([vx*block_size / voxel_scale, vy*block_size / voxel_scale, vz*block_size / voxel_scale])
-    # calculate intersecion of shapes
+                        shapes[c].append([vx * block_size / voxel_scale, vy * block_size / voxel_scale,
+                                          vz * block_size / voxel_scale])
+                        col[c].append(color)
+    # calculate intersection of shapes
     data = list(set.intersection(*map(set, shapes)))
 
+    #calculate average color
+    colors = []
+    for i in range(len(data)):
+        color = np.zeros(3)
+        for c in range(1, 2):
+            if data[i] in shapes[c]:
+                color += col[c][shapes[c].index(data[i])]
+        colors.append(color / 4)
 
     cv.imshow('mask', masks2[0])
-
     return data
+    # return data, colors
+
+
+def get_color(c, y, x):
+    color = np.zeros(3)
+    match c:
+        case 1:
+            color = frames1[y, x]
+        case 2:
+            color = frames2[y, x]
+        case 3:
+            color = frames3[y, x]
+        case 4:
+            color = frames4[y, x]
+    return color
+
 
 def inMask(imgpt, masks, imgs):
     # project x,y,z to each camera
     # add it to data if it is in every mask
     # print(masks[0][int(295)][int(351)])
     color = np.zeros(3)
-    for i in range(3,4):
+    for i in range(3, 4):
         xpoint = int(imgpt[i][0])
         ypoint = int(imgpt[i][1])
-        #check if point is out of bounds
+        # check if point is out of bounds
         if xpoint < 0 or xpoint >= masks[0].shape[1] or ypoint < 0 or ypoint >= masks[0].shape[0]:
             return False, color
         # return if point in mask is white
@@ -161,12 +197,11 @@ def inMask(imgpt, masks, imgs):
         if not inMask:
             return False, color
 
-        #take 25 procent of the img color
+        # take 25 procent of the img color
         # color += imgs[i][int(xpoint)][int(ypoint)]
     # return if point in mask is white
 
     return True, color
-
 
 
 def get_cam_positions():
