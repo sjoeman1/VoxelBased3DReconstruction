@@ -64,12 +64,12 @@ lookupTable = {}
 def generate_grid(width, depth):
     # Generates the floor grid locations
     # You don't need to edit this function
-    data = []
+    data, colors = [], []
     for x in range(width):
         for z in range(depth):
             data.append([x * block_size - width / 2, -block_size, z * block_size - depth / 2])
-    return data
-
+            colors.append([1.0, 1.0, 1.0] if (x + z) % 2 == 0 else [0, 0, 0])
+    return data, colors
 
 def generate_voxel_lookup_table(width, height, depth):
     # generate meshgrid of width, height, depth and project to each camera
@@ -117,11 +117,14 @@ def set_voxel_positions(width, height, depth):
     if not lookupTable:
         lookupTable = np.load('voxel_lookup_table.npy', allow_pickle=True).item()
         print("loaded lookup table")
-    # Generates random voxel locations
-    # TODO: You need to calculate proper voxel arrays instead of random ones.
-    # get mask.png from every camera
+
+
+
     data = []
+    #create numpy array for colors
+    colors = np.zeros((width, height, depth, 3))
     print("frame: " + str(clicks))
+    # get mask from every camera
     masks = [masks1.read()[1], masks2.read()[1], masks3.read()[1], masks4.read()[1]]
     frames = [video1.read()[1], video2.read()[1], video3.read()[1], video4.read()[1]]
     clicks += 1
@@ -136,10 +139,10 @@ def set_voxel_positions(width, height, depth):
                     continue
                 if (c, x, y) in lookupTable:
                     voxels = lookupTable[(c, x, y)]
-                    color = get_color(c, y, x, frames)
                     for v in voxels:
                         vx, vy, vz = v
                         # add one to countInShapes at the voxel position
+                        colors[int(vx)][int(vy)][int(vz)] = frames[c][y][x]
                         countInShapes[int(vx)][int(vy)][int(vz)] += 1
         print(f'finished camera {c}')
 
@@ -153,24 +156,81 @@ def set_voxel_positions(width, height, depth):
             for z in range(int(-depth/2), int(depth/2)):
                 if inAllCams[x][y][z] == 1:
                     data.append([x, y, z])
+    data2 = data.copy()
+    colors = create_colors(data2, width, height, depth, colors)
+    print(data, len(colors))
+    return data, colors
+
+def create_colors(data, width, height, depth, colors):
+    countOccluded = np.zeros((width, height, depth))
+    data = np.array(data)
+    #check for each voxel in the data if it is the closest voxel to the camera
+    for c in range(4):
+        color = np.zeros((width, height, depth, 3))
+        for x,y,z in data:
+            #check if neighbor in direction of camera is occluded
+
+            #get vector from voxel to camera
+            cam_pos, _ = get_cam_positions()
+            cam_pos = np.array([cam_pos[c][0][0], cam_pos[c][1][0], cam_pos[c][2][0]])
+            voxel_pos = np.array([x, y, z])
+            vec = cam_pos - voxel_pos
+
+            #normalize vector
+            vec = vec / np.linalg.norm(vec)
+
+            #check if neighbor in direction of vector is occluded
+            neighbor = np.zeros(3)
+            neighbor = voxel_pos + vec
+            #round vector to ints
+            neighbor_index = neighbor.astype(int)
+            limit = 3
+            i = 0
+            #check if neighbor is in data
+            found = False
+            while not found:
+                if np.any(np.all(data == neighbor_index, axis=1)):
+                    found = True
+                if found:
+                    break
+                neighbor += vec
+                neighbor_index = neighbor.astype(int)
+                i += 1
+                if i > limit:
+                    # if no neighbor is found, we give a color
+                    color[x][y][z] = colors[x][y][z] /255
+                    break
+            if found:
+                if countOccluded[neighbor_index[0]][neighbor_index[1]][neighbor_index[2]] == 0:
+                   color[x][y][z] = [0,0,0]
+                   countOccluded[x][y][z] += 1
+
+    #filter countOccluded to only exclude voxels that are occluded by all cameras
+    occluded = np.where(countOccluded > 3, 1, 0)
+    #change color of voxels that are occluded by all cameras to black
+    result = []
+    for x,y,z in data:
+                if occluded[x][y][z]:
+                    result.append([0,0,0])
+                else:
+                    result.append(color[x][y][z])
+    return result
 
 
-    return data
-    # return data, colors
 
 
-def get_color(c, y, x, frames):
-    color = np.zeros(3)
 
-    color = frames[c][y][x]
 
-    return color
+
+
+
+
 
 
 def get_cam_positions():
     # Generates dummy camera locations at the 4 corners of the room
     # TODO: You need to input the estimated locations of the 4 cameras in the world coordinates.
-    return [T1, T2, T3, T4]
+    return [T1, T2, T3, T4], [[1.0, 0, 0], [0, 1.0, 0], [0, 0, 1.0], [1.0, 1.0, 0]]
 
 
 def get_cam_rotation_matrices():
