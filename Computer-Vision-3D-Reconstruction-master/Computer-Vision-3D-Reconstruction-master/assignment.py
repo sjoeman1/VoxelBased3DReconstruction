@@ -7,7 +7,7 @@ import cv2 as cv
 
 block_size = 1.0
 
-voxel_scale = 27
+voxel_scale = 23
 
 
 def getConfig(cam_string):
@@ -47,11 +47,7 @@ frames2 = load_avi(2, 'frames')
 frames3 = load_avi(3, 'frames')
 frames4 = load_avi(4, 'frames')
 
-video1 = cv.VideoCapture('data/cam1/background.avi')
-video2 = cv.VideoCapture('data/cam2/background.avi')
-video3 = cv.VideoCapture('data/cam3/background.avi')
-video4 = cv.VideoCapture('data/cam4/background.avi')
-videos = [video1, video2, video3, video4]
+
 
 voxelFrameIdx = 0
 
@@ -126,7 +122,7 @@ def set_voxel_positions(width, height, depth):
     print("frame: " + str(clicks))
     # get mask from every camera
     masks = [masks1.read()[1], masks2.read()[1], masks3.read()[1], masks4.read()[1]]
-    frames = [video1.read()[1], video2.read()[1], video3.read()[1], video4.read()[1]]
+    frames = [frames1.read()[1], frames2.read()[1], frames3.read()[1], frames4.read()[1]]
     clicks += 1
 
     # create a zerros array of the shape width, height, depth
@@ -148,17 +144,10 @@ def set_voxel_positions(width, height, depth):
 
     # filter count in shapes to only include voxels that are in all masks
     # inAllCams = (countInShapes == 4).nonzero()
-    # data = np.array(inAllCams[0], inAllCams[1], inAllCams[2]).T
-    inAllCams = np.where(countInShapes == 4, 1, 0)
-    # add voxels in countInShapes to data
-    for x in range(int(-width/2), int(width/2)):
-        for y in range(height):
-            for z in range(int(-depth/2), int(depth/2)):
-                if inAllCams[x][y][z] == 1:
-                    data.append([x, y, z])
     data2 = data.copy()
+    print("coloring model")
     colors = create_colors(data2, width, height, depth, colors)
-    print(data, len(colors))
+    print("done")
     return data, colors
 
 def create_colors(data, width, height, depth, colors):
@@ -202,7 +191,7 @@ def create_colors(data, width, height, depth, colors):
                     break
             if found:
                 if countOccluded[neighbor_index[0]][neighbor_index[1]][neighbor_index[2]] == 0:
-                   color[x][y][z] = [0,0,0]
+                   color[x][y][z] = [255,255,255]
                    countOccluded[x][y][z] += 1
 
     #filter countOccluded to only exclude voxels that are occluded by all cameras
@@ -215,16 +204,6 @@ def create_colors(data, width, height, depth, colors):
                 else:
                     result.append(color[x][y][z])
     return result
-
-
-
-
-
-
-
-
-
-
 
 
 def get_cam_positions():
@@ -240,6 +219,6 @@ def get_cam_rotation_matrices():
     cam_rotations = []
     for c in range(len(cam_angles)):
         #rotate 90 degrees around y axis
-        cam_rotations.append(glm.rotate(glm.mat4(glm.mat3(cam_angles[c])), glm.radians(90), glm.vec3(0, 0, 1)))
+        cam_rotations.append(glm.rotate(glm.mat4(glm.mat3(cam_angles[c])), glm.radians(-90), glm.vec3(0, 1, 0)))
 
     return cam_rotations

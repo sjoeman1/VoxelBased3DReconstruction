@@ -282,15 +282,11 @@ def calibrateCam(intrinsic, extrinsic, cam_string):
 
     R = cv.Rodrigues(rvecs)[0]
 
-
-    #rotete R by 90 degrees around z axis
-    R = R * np.matrix([[0, -1, 0], [1, 0, 0], [0, 0, 1]])
-
+    R = R * numpy.matrix([[1, 0, 0], [0, 0, 1], [0, -1, 0]])
     T = -numpy.matrix(R).T * numpy.matrix(tvecs)
 
     #flip the y and z axis and negate z of T to get the correct translation
-    T = np.matrix([[T[0, 0]], [-T[2, 0]], [T[1, 0]]])
-
+    # T = np.matrix([[T[0, 0]], [T[2, 0]], [T[1, 0]]])s
     print(f'extrinsics {cam_string}:\n rotation:{rvecs},\n translation:\n {tvecs}, \n rotation matrix:\n {R}, \n translation matrix:\n {T}')
 
     camXML = cv.FileStorage(f'data/{cam_string}/config.xml', cv.FileStorage_WRITE)
