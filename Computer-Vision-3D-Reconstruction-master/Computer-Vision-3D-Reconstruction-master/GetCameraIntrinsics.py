@@ -236,26 +236,29 @@ def getFrames(cam, frame_count):
 
 
 def main():
-    # img1 = calibrateCam(camIntrinsic1, camExtrinsic1, 'cam1')
-    # img2 = calibrateCam(camIntrinsic2, camExtrinsic2, 'cam2')
-    # img3 = calibrateCam(camIntrinsic3, camExtrinsic3, 'cam3')
-    # img4 = calibrateCam(camIntrinsic4, camExtrinsic4, 'cam4')
+    img1 = calibrateCam(camIntrinsic1, camExtrinsic1, 'cam1')
+    img2 = calibrateCam(camIntrinsic2, camExtrinsic2, 'cam2')
+    img3 = calibrateCam(camIntrinsic3, camExtrinsic3, 'cam3')
+    img4 = calibrateCam(camIntrinsic4, camExtrinsic4, 'cam4')
     print('done ')
-    img1 = camExtrinsic1.read()[1]
-    img2 = camExtrinsic2.read()[1]
-    img3 = camExtrinsic3.read()[1]
-    img4 = camExtrinsic4.read()[1]
-
-    drawCamPos(img1, cam1xml)
-    drawCamPos(img2, cam2xml)
-    drawCamPos(img3, cam3xml)
-    drawCamPos(img4, cam4xml)
+    # img1 = camExtrinsic1.read()[1]
+    # img2 = camExtrinsic2.read()[1]
+    # img3 = camExtrinsic3.read()[1]
+    # img4 = camExtrinsic4.read()[1]
+    #
+    # drawCamPos(img1, cam1xml)
+    # drawCamPos(img2, cam2xml)
+    # drawCamPos(img3, cam3xml)
+    # drawCamPos(img4, cam4xml)
 
 
 def calibrateCam(intrinsic, extrinsic, cam_string):
     print(cam_string)
-    frames = getFrames(intrinsic, 20)
-    ret, mtx, dist, rvecs, tvecs = Offline(frames)
+    # frames = getFrames(intrinsic, 20)
+    # ret, mtx, dist, rvecs, tvecs = Offline(frames)
+    cam_xml = cv.FileStorage(f'data\{cam_string}\config.xml', cv.FileStorage_READ)
+    mtx = cam_xml.getNode('CameraMatrix').mat()
+    dist = cam_xml.getNode('DistortionCoeffs').mat()
 
 
     print(f'calibration {cam_string}:\n cam:\n{mtx},\n distortion:\n {dist}')
@@ -278,8 +281,12 @@ def calibrateCam(intrinsic, extrinsic, cam_string):
     ret, rvecs, tvecs = cv.solvePnP(objp, corners2, mtx, dist)
 
     R = cv.Rodrigues(rvecs)[0]
+
+    R = R * numpy.matrix([[1, 0, 0], [0, 0, 1], [0, -1, 0]])
     T = -numpy.matrix(R).T * numpy.matrix(tvecs)
 
+    #flip the y and z axis and negate z of T to get the correct translation
+    # T = np.matrix([[T[0, 0]], [T[2, 0]], [T[1, 0]]])s
     print(f'extrinsics {cam_string}:\n rotation:{rvecs},\n translation:\n {tvecs}, \n rotation matrix:\n {R}, \n translation matrix:\n {T}')
 
     camXML = cv.FileStorage(f'data/{cam_string}/config.xml', cv.FileStorage_WRITE)
@@ -299,7 +306,7 @@ def calibrateCam(intrinsic, extrinsic, cam_string):
 def drawCamPos(img, xml_file):
     mtx = xml_file.getNode('CameraMatrix').mat()
     dist = xml_file.getNode('DistortionMatrix').mat()
-    rvecs = xml_file.getNode('rvec').mat()
+    # rvecs = xml_file.getNode('rvec').mat()
     tvecs = xml_file.getNode('tvecs').mat()
     R = xml_file.getNode('RotationMatrix').mat()
     T = xml_file.getNode('TranslationMatrix').mat()
@@ -329,6 +336,16 @@ def drawCamPos(img, xml_file):
     cam4pos[2] = -cam4pos[2]
     cam_points = np.float32([cam1pos, cam2pos, cam3pos, cam4pos])
     print(cam_points)
+
+    rvecs = cv.Rodrigues(R)[0]
+
+    length = 4 * cube_size
+    cube = np.float32([[0, 0, 0], [0, length, 0], [length, length, 0], [length, 0, 0],
+                       [0, 0, -length], [0, length, -length], [length, length, -length], [length, 0, -length]])
+
+    # project 3D points to image plane
+    imgpts, jac = cv.projectPoints(cube, rvecs, tvecs, mtx, dist)
+    img = draw_cube(img, imgpts)
 
     campts, jac = cv.projectPoints(cam_points, rvecs, tvecs, mtx, dist)
     points = np.int32(campts).reshape(-1, 2)

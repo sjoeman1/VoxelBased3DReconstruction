@@ -130,3 +130,6 @@ dmypy.json
 
 # Pyre type checker
 .pyre/
+
+voxel_lookup_table.npy
+lookupTable.npy
