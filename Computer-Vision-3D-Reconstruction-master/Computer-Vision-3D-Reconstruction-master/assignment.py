@@ -199,7 +199,7 @@ def create_colors(data, width, height, depth, colors):
                     break
             if found:
                 if countOccluded[neighbor_index[0]][neighbor_index[1]][neighbor_index[2]] == 0:
-                   color[x][y][z] = [0,0,255]
+                   color[x][y][z] = [0,0,0]
                    countOccluded[x][y][z] += 1
 
     #filter countOccluded to only exclude voxels that are occluded by all cameras
