@@ -144,6 +144,14 @@ def set_voxel_positions(width, height, depth):
 
     # filter count in shapes to only include voxels that are in all masks
     # inAllCams = (countInShapes == 4).nonzero()
+    # data = np.array(inAllCams[0], inAllCams[1], inAllCams[2]).T
+    inAllCams = np.where(countInShapes == 4, 1, 0)
+    # add voxels in countInShapes to data
+    for x in range(int(-width/2), int(width/2)):
+        for y in range(height):
+            for z in range(int(-depth/2), int(depth/2)):
+                if inAllCams[x][y][z] == 1:
+                    data.append([x, y, z])
     data2 = data.copy()
     print("coloring model")
     colors = create_colors(data2, width, height, depth, colors)
@@ -191,7 +199,7 @@ def create_colors(data, width, height, depth, colors):
                     break
             if found:
                 if countOccluded[neighbor_index[0]][neighbor_index[1]][neighbor_index[2]] == 0:
-                   color[x][y][z] = [255,255,255]
+                   color[x][y][z] = [0,0,255]
                    countOccluded[x][y][z] += 1
 
     #filter countOccluded to only exclude voxels that are occluded by all cameras
