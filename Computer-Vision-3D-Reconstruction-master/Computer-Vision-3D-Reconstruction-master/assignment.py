@@ -104,7 +104,7 @@ def generate_voxel_lookup_table(width, height, depth):
     np.save('voxel_lookup_table.npy', lookupTable)
     print("done")
 
-
+#generate voxel model
 def set_voxel_positions(width, height, depth):
     global lookupTable
     global clicks
@@ -158,6 +158,7 @@ def set_voxel_positions(width, height, depth):
     print("done")
     return data, colors
 
+#create colors for the voxels by looking at the color of the pixels in the mask and making sure the voxel is not occluded
 def create_colors(data, width, height, depth, colors):
     countOccluded = np.zeros((width, height, depth))
     data = np.array(data)

@@ -3,6 +3,8 @@ import numpy as np
 
 
 def compose_background(frames):
+    # calculate average and standard deviation of background video
+
     # convert frames to HSV first
     for i in range(len(frames)):
         frames[i] = cv.cvtColor(frames[i], cv.COLOR_BGR2HSV)
@@ -21,6 +23,7 @@ def compose_background(frames):
 
 
 def subtract_background(video, background, sd):
+    # remove background from video and return masks
     new_frames = []
     frames = getFrames(video, num_frames= 5)
     i = 0
@@ -80,7 +83,7 @@ def create_mask(diff, sd):
 
     return mask
 
-
+# get frames from video
 def getFrames(cam, num_frames=30):
     frames = []
     total_frames = cam.get(cv.CAP_PROP_FRAME_COUNT)
